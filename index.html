@@ -30,19 +30,12 @@
         </div>
     </div>
 
-    <div id="resetModal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[110] hidden">
-        <div class="bg-gray-900 p-8 rounded-2xl border border-blue-500 shadow-2xl w-full max-w-md space-y-6">
-            <h3 class="text-xl font-bold text-white">Setup New Password</h3>
-            <input type="password" id="newPass" placeholder="Enter New Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
-            <button onclick="saveNewPassword()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">Save & Continue</button>
-        </div>
-    </div>
-
     <div id="mainApp">
         <nav class="flex items-center justify-between pb-8 border-b border-gray-800 mb-8">
             <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight">Rack<span class="text-white">Tracker</span> PRO</h1>
             <div class="flex gap-3">
                 <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-sm mr-4 font-medium">Logout</button>
+                <button onclick="openDeleteModal()" class="flex items-center gap-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Delete Rack</button>
                 <button onclick="openPassModal()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Pass Rack</button>
                 <button onclick="toggleModal('rackModal')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Add New Rack</button>
             </div>
@@ -64,10 +57,8 @@
                     </div>
                 </div>
                 <div class="flex items-end gap-3">
-                    <button onclick="exportActiveTableOnly()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all">
-                        Export Report
-                    </button>
-                    <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 rounded-lg transition">Clear</button>
+                    <button onclick="exportActiveTableOnly()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all">Export Report</button>
+                    <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 rounded-lg transition text-xs">Clear Day</button>
                 </div>
             </div>
 
@@ -80,18 +71,12 @@
                         </div>
                         <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-800/50 text-xs text-gray-400 uppercase tracking-wider">
-                                <tr>
-                                    <th class="px-6 py-4 w-1/4">Serial Number</th>
-                                    <th class="px-6 py-4 w-1/4">Location</th>
-                                    <th class="px-6 py-4">Comments / Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
-                        </table>
-                    </div>
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800/50 text-xs text-gray-400 uppercase tracking-wider">
+                            <tr><th class="px-6 py-4 w-1/4">Serial Number</th><th class="px-6 py-4 w-1/4">Location</th><th class="px-6 py-4">Comments / Actions</th></tr>
+                        </thead>
+                        <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -100,18 +85,21 @@
                     <h3 class="text-lg font-bold text-gray-400">Inactive History</h3>
                     <span id="inactiveCount" class="text-xs font-mono text-gray-500">0 Units</span>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-800/30 text-xs text-gray-500 uppercase tracking-wider">
-                            <tr>
-                                <th class="px-6 py-4 w-1/4">Serial Number</th>
-                                <th class="px-6 py-4 w-1/4">Location</th>
-                                <th class="px-6 py-4">Comments / Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inactiveTableBody" class="divide-y divide-gray-800 opacity-60"></tbody>
-                    </table>
-                </div>
+                <table class="w-full text-left">
+                    <tbody id="inactiveTableBody" class="divide-y divide-gray-800 opacity-60"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6">
+            <h3 class="text-2xl font-bold text-red-400">Remove from View</h3>
+            <p class="text-sm text-gray-400 italic">This hides the rack from tables but saves the history in the background archive.</p>
+            <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+            <div class="flex gap-3">
+                <button onclick="confirmDeleteRack()" class="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-xl font-bold">Remove from Tables</button>
+                <button onclick="toggleModal('deleteModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
             </div>
         </div>
     </div>
@@ -124,7 +112,7 @@
             <textarea id="notes" placeholder="Initial Rack History..." rows="3" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
             <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg border border-gray-700">
                 <span class="font-medium text-gray-300">Active Status</span>
-                <input type="checkbox" id="active" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" checked>
+                <input type="checkbox" id="active" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-blue-600" checked>
             </div>
             <div class="flex gap-3">
                 <button onclick="saveRackEntry()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Save Entry</button>
@@ -135,22 +123,16 @@
 
     <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] transition-all duration-300 opacity-0 pointer-events-none">
         <div class="bg-gray-900 w-full max-w-2xl p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6">
-            <h3 class="text-2xl font-bold text-blue-400">Rack Information & History</h3>
+            <h3 class="text-2xl font-bold text-blue-400">Rack History Log</h3>
             <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
-                <div>
-                    <p class="text-xs text-gray-500 uppercase font-mono">Serial Number</p>
-                    <p id="editModalSerial" class="text-lg font-bold text-white font-mono"></p>
-                </div>
+                <p id="editModalSerial" class="text-lg font-bold text-white font-mono"></p>
                 <div class="flex items-center gap-3">
                     <span class="text-sm font-medium text-gray-300">Active Status</span>
-                    <input type="checkbox" id="editModalStatus" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-emerald-500 focus:ring-emerald-500">
+                    <input type="checkbox" id="editModalStatus" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-emerald-500">
                 </div>
             </div>
-            <div>
-                <p class="text-xs text-gray-500 uppercase font-mono mb-2">History Log</p>
-                <textarea id="editNotesArea" rows="10" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm focus:ring-1 focus:ring-blue-500"></textarea>
-            </div>
-            <button id="saveNotesBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold transition">Update Rack</button>
+            <textarea id="editNotesArea" rows="10" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm"></textarea>
+            <button id="saveNotesBtn" class="w-full bg-emerald-600 py-3 rounded-xl font-bold">Update Rack</button>
         </div>
     </div>
 
@@ -167,18 +149,7 @@
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
-            if(u === auth.user && p === auth.pass) {
-                if(auth.firstTime) document.getElementById('resetModal').classList.remove('hidden');
-                else enterApp();
-            } else alert("Invalid credentials.");
-        }
-        function saveNewPassword() {
-            const np = document.getElementById('newPass').value;
-            if(!np) return alert("Required.");
-            auth.pass = np; auth.firstTime = false;
-            localStorage.setItem('rackTrackerAuth', JSON.stringify(auth));
-            document.getElementById('resetModal').classList.add('hidden');
-            enterApp();
+            if(u === auth.user && p === auth.pass) { enterApp(); } else alert("Invalid.");
         }
         function enterApp() {
             document.getElementById('loginScreen').style.display = 'none';
@@ -188,12 +159,14 @@
         function logout() { location.reload(); }
 
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
+        // Background Archive for "Deleted" racks
+        let rackArchive = JSON.parse(localStorage.getItem('rackTrackerArchive')) || [];
+
         const dInput = document.getElementById('dateFilter');
         const sInput = document.getElementById('searchQuery');
         dInput.value = new Date().toISOString().split('T')[0];
 
         dInput.addEventListener('change', loadAndDisplayReport);
-        // Search triggered by button or Enter key
         sInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') loadAndDisplayReport(); });
 
         function toggleModal(id) {
@@ -202,16 +175,60 @@
             m.classList.toggle('pointer-events-none');
         }
 
+        function openDeleteModal() {
+            const current = allRacks[dInput.value] || [];
+            if (current.length === 0) return alert("No racks found for today.");
+            document.getElementById('deleteRackSelector').innerHTML = current.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('deleteModal');
+        }
+
+        function confirmDeleteRack() {
+            const id = parseInt(document.getElementById('deleteRackSelector').value);
+            const rackIndex = allRacks[dInput.value].findIndex(r => r.id === id);
+            
+            if (rackIndex !== -1) {
+                // SAVE TO ARCHIVE BEFORE REMOVING
+                const archivedRack = allRacks[dInput.value][rackIndex];
+                rackArchive.push({
+                    ...archivedRack,
+                    archivedDate: new Date().toISOString(),
+                    originalLogDate: dInput.value
+                });
+                localStorage.setItem('rackTrackerArchive', JSON.stringify(rackArchive));
+                
+                // REMOVE FROM TABLE
+                allRacks[dInput.value].splice(rackIndex, 1);
+                syncAndRefresh();
+                toggleModal('deleteModal');
+            }
+        }
+
+        function openPassModal() {
+            const active = (allRacks[dInput.value] || []).filter(r => r.active);
+            if (active.length === 0) return alert("No active racks.");
+            document.getElementById('activeRackSelector').innerHTML = active.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('activeRackSelector').value);
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value][idx].active = false;
+                syncAndRefresh();
+                toggleModal('passModal');
+            }
+        }
+
         function openEditNotes(date, id) {
             const rack = allRacks[date].find(r => r.id === id);
             document.getElementById('editModalSerial').innerText = rack.serial;
             document.getElementById('editModalStatus').checked = rack.active;
             document.getElementById('editNotesArea').value = rack.notes || "";
-            
             document.getElementById('saveNotesBtn').onclick = function() {
-                const index = allRacks[date].findIndex(r => r.id === id);
-                allRacks[date][index].notes = document.getElementById('editNotesArea').value;
-                allRacks[date][index].active = document.getElementById('editModalStatus').checked;
+                const idx = allRacks[date].findIndex(r => r.id === id);
+                allRacks[date][idx].notes = document.getElementById('editNotesArea').value;
+                allRacks[date][idx].active = document.getElementById('editModalStatus').checked;
                 syncAndRefresh();
                 toggleModal('editNotesModal');
             };
@@ -243,32 +260,21 @@
             const aTbody = document.getElementById('activeTableBody');
             const iTbody = document.getElementById('inactiveTableBody');
             aTbody.innerHTML = ''; iTbody.innerHTML = '';
-
-            const records = allRacks[date] || [];
-            const filtered = records.filter(r => 
+            
+            const filtered = (allRacks[date] || []).filter(r => 
                 r.serial.toLowerCase().includes(q) || 
-                r.location.toLowerCase().includes(q) ||
+                r.location.toLowerCase().includes(q) || 
                 (r.notes && r.notes.toLowerCase().includes(q))
             );
-
+            
             let aCount = 0, iCount = 0;
-            filtered.forEach((r) => {
-                const row = `
-                    <tr class="hover:bg-gray-800/40">
-                        <td class="px-6 py-4">
-                            <button onclick="openEditNotes('${date}', ${r.id})" class="text-blue-400 font-mono font-bold underline decoration-dotted">
-                                ${r.serial}
-                            </button>
-                        </td>
-                        <td class="px-6 py-4 text-gray-300 text-sm">${r.location || '--'}</td>
-                        <td class="px-6 py-4">
-                            <div contenteditable="true" class="min-h-[1.5rem] bg-gray-950/50 p-2 border border-gray-800 rounded text-sm text-white"
-                                 onblur="updateAction('${date}', ${r.id}, this.innerText)">${r.actions}</div>
-                        </td>
-                    </tr>`;
-                
-                if (r.active) { aTbody.innerHTML += row; aCount++; } 
-                else { iTbody.innerHTML += row; iCount++; }
+            filtered.forEach(r => {
+                const row = `<tr>
+                    <td class="px-6 py-4"><button onclick="openEditNotes('${date}', ${r.id})" class="text-blue-400 font-mono font-bold underline decoration-dotted">${r.serial}</button></td>
+                    <td class="px-6 py-4 text-gray-300 text-sm">${r.location || '--'}</td>
+                    <td class="px-6 py-4"><div contenteditable="true" class="bg-gray-950/50 p-2 border border-gray-800 rounded text-sm text-white" onblur="updateAction('${date}', ${r.id}, this.innerText)">${r.actions}</div></td>
+                </tr>`;
+                if(r.active) { aTbody.innerHTML += row; aCount++; } else { iTbody.innerHTML += row; iCount++; }
             });
             document.getElementById('activeCount').innerText = `${aCount} Units`;
             document.getElementById('inactiveCount').innerText = `${iCount} Units`;
@@ -276,10 +282,7 @@
 
         function updateAction(date, id, text) {
             const idx = allRacks[date].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[date][idx].actions = text;
-                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
-            }
+            if (idx !== -1) { allRacks[date][idx].actions = text; syncAndRefresh(); }
         }
 
         function syncAndRefresh() {
@@ -299,28 +302,8 @@
             });
         }
 
-        function openPassModal() {
-            const active = (allRacks[dInput.value] || []).filter(r => r.active);
-            if (active.length === 0) return alert("No active racks.");
-            document.getElementById('activeRackSelector').innerHTML = active.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('passModal');
-        }
-
-        function confirmPassRack() {
-            const id = parseInt(document.getElementById('activeRackSelector').value);
-            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[dInput.value][idx].active = false;
-                syncAndRefresh();
-                toggleModal('passModal');
-            }
-        }
-
         function clearDayData() {
-            if(confirm("Clear records for this date?")) {
-                delete allRacks[dInput.value];
-                syncAndRefresh();
-            }
+            if(confirm("Wipe all data for today? (Does NOT clear archive)")) { delete allRacks[dInput.value]; syncAndRefresh(); }
         }
     </script>
 </body>
