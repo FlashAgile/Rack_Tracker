@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Rack Tracker PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { transition: background-color 0.3s, color 0.3s; }
+        ::-webkit-calendar-picker-indicator { filter: invert(1); }
+        [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
+        #mainApp { display: none; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
+
+    <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex items-center justify-center z-[100]">
+        <div class="bg-gray-900 p-10 rounded-2xl border border-gray-800 shadow-2xl w-full max-w-md space-y-6">
+            <div class="text-center">
+                <h1 class="text-3xl font-extrabold text-blue-400">Rack<span class="text-white">Tracker</span></h1>
+                <p class="text-gray-500 text-sm mt-2">Authorized Access Only</p>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="userIn" placeholder="Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="passIn" placeholder="Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="resetModal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[110] hidden">
+        <div class="bg-gray-900 p-8 rounded-2xl border border-blue-500 shadow-2xl w-full max-w-md space-y-6">
+            <h3 class="text-xl font-bold text-white">Setup New Password</h3>
+            <p class="text-gray-400 text-sm">Security requirement: Please update your default admin password.</p>
+            <input type="password" id="newPass" placeholder="Enter New Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+            <button onclick="saveNewPassword()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">Save & Continue</button>
+        </div>
+    </div>
+
+    <div id="mainApp">
+        <nav class="flex items-center justify-between pb-8 border-b border-gray-800 mb-8">
+            <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight">Rack<span class="text-white">Tracker</span> PRO</h1>
+            <div class="flex gap-3">
+                <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-sm mr-4">Logout</button>
+                <button onclick="openPassModal()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Pass Rack
+                </button>
+                <button onclick="toggleModal('rackModal')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Add New Rack
+                </button>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <div class="space-y-2">
+                    <label for="dateFilter" class="text-sm font-medium text-gray-400">Research Date</label>
+                    <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 transition text-white">
+                </div>
+                <div class="space-y-2">
+                    <label for="searchQuery" class="text-sm font-medium text-gray-400">Search Records</label>
+                    <input type="text" id="searchQuery" placeholder="Serial or Location..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 transition text-white">
+                </div>
+                <div class="flex items-end gap-3">
+                    <button onclick="exportJSON()" class="w-full h-12 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Export JSON
+                    </button>
+                    <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 hover:text-red-300 rounded-lg transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <h2 class="text-xl font-bold italic text-gray-500 text-center md:text-left">Showing records for: <span id="reportTitle" class="text-blue-400 not-italic"></span></h2>
+
+            <div class="bg-gray-900 rounded-2xl border border-emerald-900/30 shadow-xl overflow-hidden">
+                <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
+                    <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800/50 text-xs text-gray-400 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4 w-1/4">Serial Number (Edit History)</th>
+                                <th class="px-6 py-4 w-1/4">Location</th>
+                                <th class="px-6 py-4">Comments / Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+                <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-gray-400">Inactive Racks</h3>
+                    <span id="inactiveCount" class="text-xs font-mono bg-gray-800 px-2 py-1 rounded border border-gray-700 text-gray-500">0 Units</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800/30 text-xs text-gray-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4 w-1/4">Serial Number</th>
+                                <th class="px-6 py-4 w-1/4">Location</th>
+                                <th class="px-6 py-4">Comments / Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inactiveTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-xl p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
+            <h3 class="text-2xl font-bold border-b border-gray-700 pb-3 text-blue-400">Log New Server Rack</h3>
+            <div class="grid grid-cols-1 gap-5">
+                <input type="text" id="serial" placeholder="Serial Number" class="bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 text-white">
+                <input type="text" id="location" placeholder="Location" class="bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 text-white">
+                <textarea id="notes" placeholder="Initial History/General Notes" rows="3" class="bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 text-white"></textarea>
+                <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <span class="font-medium text-gray-300">Active Status</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="active" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="saveRackEntry()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Save Entry</button>
+                <button onclick="toggleModal('rackModal')" class="px-6 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-emerald-900/50 shadow-2xl space-y-6">
+            <h3 class="text-2xl font-bold border-b border-gray-700 pb-3 text-emerald-400">Pass Rack</h3>
+            <select id="activeRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-emerald-500"></select>
+            <div class="flex gap-3">
+                <button onclick="confirmPassRack()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">Confirm Pass</button>
+                <button onclick="toggleModal('passModal')" class="px-6 bg-gray-800 hover:bg-gray-700 text-white rounded-xl transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-2xl p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6">
+            <div class="flex justify-between items-start">
+                <h3 class="text-2xl font-bold text-blue-400">History Log</h3>
+                <button onclick="toggleModal('editNotesModal')" class="text-gray-500">✕</button>
+            </div>
+            <p id="editModalSerial" class="text-xs font-mono text-gray-500 uppercase"></p>
+            <textarea id="editNotesArea" rows="12" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm"></textarea>
+            <button id="saveNotesBtn" class="w-full bg-emerald-600 py-3 rounded-xl font-bold">Update History</button>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTH LOGIC ---
+        const credentials = JSON.parse(localStorage.getItem('rackTrackerAuth')) || { user: 'Admin', pass: 'Admin', firstTime: true };
+        
+        function handleLogin() {
+            const u = document.getElementById('userIn').value;
+            const p = document.getElementById('passIn').value;
+
+            if(u === credentials.user && p === credentials.pass) {
+                if(credentials.firstTime) {
+                    document.getElementById('resetModal').classList.remove('hidden');
+                } else {
+                    enterApp();
+                }
+            } else {
+                alert("Incorrect Credentials.");
+            }
+        }
+
+        function saveNewPassword() {
+            const np = document.getElementById('newPass').value;
+            if(!np) return alert("Password cannot be empty.");
+            
+            credentials.pass = np;
+            credentials.firstTime = false;
+            localStorage.setItem('rackTrackerAuth', JSON.stringify(credentials));
+            document.getElementById('resetModal').classList.add('hidden');
+            enterApp();
+        }
+
+        function enterApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            loadAndDisplayReport();
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        // --- APP LOGIC ---
+        let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
+        const dateInput = document.getElementById('dateFilter');
+        const searchInput = document.getElementById('searchQuery');
+        dateInput.value = new Date().toISOString().split('T')[0];
+
+        dateInput.addEventListener('change', loadAndDisplayReport);
+        searchInput.addEventListener('input', loadAndDisplayReport);
+
+        function toggleModal(modalId) {
+            const m = document.getElementById(modalId);
+            m.classList.toggle('opacity-0');
+            m.classList.toggle('pointer-events-none');
+        }
+
+        function openPassModal() {
+            const dateKey = dateInput.value;
+            const activeRacks = (allRacks[dateKey] || []).filter(r => r.active);
+            const selector = document.getElementById('activeRackSelector');
+            if (activeRacks.length === 0) return alert("No Active racks to pass.");
+            selector.innerHTML = activeRacks.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function confirmPassRack() {
+            const dateKey = dateInput.value;
+            const idToPass = parseInt(document.getElementById('activeRackSelector').value);
+            const idx = allRacks[dateKey].findIndex(r => r.id === idToPass);
+            if (idx !== -1) {
+                allRacks[dateKey][idx].active = false;
+                syncAndRefresh();
+                toggleModal('passModal');
+            }
+        }
+
+        function openEditNotes(date, id) {
+            const rack = allRacks[date].find(r => r.id === id);
+            if (!rack) return;
+            document.getElementById('editModalSerial').innerText = `SN: ${rack.serial}`;
+            document.getElementById('editNotesArea').value = rack.notes || "";
+            document.getElementById('saveNotesBtn').onclick = function() {
+                const index = allRacks[date].findIndex(r => r.id === id);
+                allRacks[date][index].notes = document.getElementById('editNotesArea').value;
+                syncAndRefresh();
+                toggleModal('editNotesModal');
+            };
+            toggleModal('editNotesModal');
+        }
+
+        function saveRackEntry() {
+            const serial = document.getElementById('serial').value.trim();
+            if (!serial) return alert("Serial Number is required.");
+            const entry = {
+                id: Date.now(),
+                serial: serial,
+                location: document.getElementById('location').value.trim(),
+                notes: document.getElementById('notes').value.trim(),
+                actions: "",
+                active: document.getElementById('active').checked,
+            };
+            const dateKey = dateInput.value;
+            if (!allRacks[dateKey]) allRacks[dateKey] = [];
+            allRacks[dateKey].push(entry);
+            syncAndRefresh();
+            document.getElementById('serial').value = '';
+            document.getElementById('location').value = '';
+            document.getElementById('notes').value = '';
+            toggleModal('rackModal');
+        }
+
+        function updateAction(date, id, text) {
+            const index = allRacks[date].findIndex(r => r.id === id);
+            if (index !== -1) {
+                allRacks[date][index].actions = text;
+                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+            }
+        }
+
+        function loadAndDisplayReport() {
+            const selectedDate = dateInput.value;
+            const query = searchInput.value.toLowerCase();
+            document.getElementById('reportTitle').innerText = selectedDate;
+            const activeTbody = document.getElementById('activeTableBody');
+            const inactiveTbody = document.getElementById('inactiveTableBody');
+            activeTbody.innerHTML = '';
+            inactiveTbody.innerHTML = '';
+
+            const dayRecords = allRacks[selectedDate] || [];
+            const filtered = dayRecords.filter(r => r.serial.toLowerCase().includes(query) || r.location.toLowerCase().includes(query));
+
+            let aCount = 0, iCount = 0;
+            filtered.forEach((r) => {
+                const row = `
+                    <tr class="hover:bg-gray-800/40 transition-colors">
+                        <td class="px-6 py-4">
+                            <button onclick="openEditNotes('${selectedDate}', ${r.id})" class="text-blue-400 hover:text-blue-300 font-mono font-bold decoration-dotted underline underline-offset-4 decoration-blue-800">
+                                ${r.serial}
+                            </button>
+                        </td>
+                        <td class="px-6 py-4 text-gray-300 text-sm font-medium">${r.location || '--'}</td>
+                        <td class="px-6 py-4">
+                            <div contenteditable="true" 
+                                 class="min-h-[1.5rem] bg-gray-950/50 p-2 border border-gray-800 rounded text-sm text-white"
+                                 onblur="updateAction('${selectedDate}', ${r.id}, this.innerText)">${r.actions}</div>
+                        </td>
+                    </tr>`;
+                
+                if (r.active) { activeTbody.innerHTML += row; aCount++; } 
+                else { inactiveTbody.innerHTML += row; iCount++; }
+            });
+
+            document.getElementById('activeCount').innerText = `${aCount} Units`;
+            document.getElementById('inactiveCount').innerText = `${iCount} Units`;
+        }
+
+        function exportJSON() {
+            const data = allRacks[dateInput.value] || [];
+            if (data.length === 0) return alert("No data to export.");
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `Rack_Report_${dateInput.value}.json`);
+            document.body.appendChild(dl);
+            dl.click();
+            dl.remove();
+        }
+
+        function syncAndRefresh() {
+            localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+            loadAndDisplayReport();
+        }
+
+        function clearDayData() {
+            if(confirm("Permanently delete this day's records?")) {
+                delete allRacks[dateInput.value];
+                syncAndRefresh();
+            }
+        }
+    </script>
+</body>
+</html>
