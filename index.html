@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Rack Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { margin-bottom: 20px; }
+        input, textarea, button { margin: 5px; padding: 8px; }
+        .rack { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+        .active { color: green; }
+        .inactive { color: red; }
+        #report { display: none; margin-top: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Server Rack Tracker</h1>
+    <form id="rackForm">
+        <input type="text" id="serial" placeholder="Serial Number" required>
+        <input type="text" id="location" placeholder="Location" required>
+        <textarea id="notes" placeholder="General Notes"></textarea>
+        <label><input type="checkbox" id="active"> Active</label>
+        <button type="submit">Add Rack</button>
+    </form>
+    <h2>Racks</h2>
+    <div id="rackList"></div>
+    <button id="exportData">Export Data (JSON)</button>
+    <input type="file" id="importData" accept=".json" style="display: none;">
+    <label for="importData" style="cursor: pointer; background: #f0f0f0; padding: 8px; margin: 5px; display: inline-block;">Import Data (JSON)</label>
+    <div id="report">
+        <h2>Daily Report</h2>
+        <table id="reportTable">
+            <thead>
+                <tr>
+                    <th>Serial Number</th>
+                    <th>Location</th>
+                    <th>Notes</th>
+                    <th>Active</th>
+                    <th>Date Added</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <script>
+        let racks = JSON.parse(localStorage.getItem('racks')) || [];
+
+        function displayRacks() {
+            const list = document.getElementById('rackList');
+            list.innerHTML = '';
+            racks.forEach((rack, index) => {
+                const div = document.createElement('div');
+                div.className = 'rack';
+                div.innerHTML = `
+                    <strong>Serial:</strong> ${rack.serial}<br>
+                    <strong>Location:</strong> ${rack.location}<br>
+                    <strong>Notes:</strong> ${rack.notes}<br>
+                    <strong>Active:</strong> <span class="${rack.active ? 'active' : 'inactive'}">${rack.active ? 'Yes' : 'No'}</span><br>
+                    <strong>Date Added:</strong> ${rack.date}<br>
+                    <button onclick="deleteRack(${index})">Delete</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function deleteRack(index) {
+            racks.splice(index, 1);
+            localStorage.setItem('racks', JSON.stringify(racks));
+            displayRacks();
+        }
+
+        document.getElementById('rackForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const serial = document.getElementById('serial').value;
+            const location = document.getElementById('location').value;
+            const notes = document.getElementById('notes').value;
+            const active = document.getElementById('active').checked;
+            const date = new Date().toLocaleDateString();
+            racks.push({ serial, location, notes, active, date });
+            localStorage.setItem('racks', JSON.stringify(racks));
+            displayRacks();
+            this.reset();
+        });
+
+        document.getElementById('showReport').addEventListener('click', function() {
+            const report = document.getElementById('report');
+            const tbody = document.querySelector('#reportTable tbody');
+            tbody.innerHTML = '';
+            racks.forEach(rack => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${rack.serial}</td>
+                    <td>${rack.location}</td>
+                    <td>${rack.notes}</td>
+                    <td>${rack.active ? 'Yes' : 'No'}</td>
+                    <td>${rack.date}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            report.style.display = 'block';
+        });
+
+        document.getElementById('exportReport').addEventListener('click', function() {
+            let csv = 'Serial Number,Location,Notes,Active,Date Added\n';
+            racks.forEach(rack => {
+                csv += `"${rack.serial}","${rack.location}","${rack.notes}","${rack.active ? 'Yes' : 'No'}","${rack.date}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rack_report.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('exportData').addEventListener('click', function() {
+            const data = JSON.stringify(racks, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rack_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        document.getElementById('importData').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        racks = JSON.parse(e.target.result);
+                        localStorage.setItem('racks', JSON.stringify(racks));
+                        displayRacks();
+                        alert('Data imported successfully!');
+                    } catch (error) {
+                        alert('Invalid JSON file.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        displayRacks();
+    </script>
+</body>
+</html>
