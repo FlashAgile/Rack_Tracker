@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Rack Tracker PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Base styles for smooth dark theme transitions */
+        body { transition: background-color 0.3s, color 0.3s; }
+        /* Professional calendar picker styling for dark mode */
+        ::-webkit-calendar-picker-indicator { filter: invert(1); }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
+
+    <nav class="flex items-center justify-between pb-8 border-b border-gray-800 mb-8">
+        <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight">Rack<span class="text-white">Tracker</span> PRO</h1>
+        <button onclick="toggleModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Add New Rack
+        </button>
+    </nav>
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <div class="space-y-2">
+                <label for="dateFilter" class="text-sm font-medium text-gray-400">View/Research Report For Date</label>
+                <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            
+            <div class="space-y-2">
+                <label for="searchQuery" class="text-sm font-medium text-gray-400">Search Records (Serial or Loc)</label>
+                <div class="relative">
+                    <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="searchQuery" placeholder="Search..." class="w-full bg-gray-800 p-3 pl-10 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+            </div>
+
+            <div class="flex items-end gap-3">
+                <button onclick="exportCSV()" class="w-full h-12 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition-all">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Export Daily CSV
+                </button>
+                 <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 hover:text-red-300 rounded-lg transition" title="Clear this day's data">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                 </button>
+            </div>
+        </div>
+
+        <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+            <h2 class="text-xl font-bold p-6 border-b border-gray-800">
+                Daily Report: <span id="reportTitle" class="text-blue-400">Loading...</span>
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-800 text-sm text-gray-400 font-semibold">
+                        <tr>
+                            <th class="px-6 py-4">Serial Number</th>
+                            <th class="px-6 py-4">Location</th>
+                            <th class="px-6 py-4">Status</th>
+                            <th class="px-6 py-4">General Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody" class="divide-y divide-gray-800">
+                        </tbody>
+                </table>
+                <div id="noDataMessage" class="hidden text-center py-20 text-gray-600 italic">No records found for this date/search.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="rackModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-xl p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6 relative transition-transform duration-300 scale-95">
+            
+            <button onclick="toggleModal()" class="absolute top-5 right-5 text-gray-500 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l18 18"></path></svg>
+            </button>
+            
+            <h3 class="text-2xl font-bold border-b border-gray-700 pb-3">Log New Rack Entry</h3>
+            
+            <div class="grid grid-cols-1 gap-5">
+                <input type="text" id="serial" placeholder="Serial Number (Required)" class="bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="location" placeholder="Location (e.g., Aisle 3, Row B)" class="bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500">
+                <textarea id="notes" placeholder="General Notes / Details" rows="4" class="bg-gray-800 p-3 rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500"></textarea>
+                
+                <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <span class="font-medium">Active Status</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="active" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="flex gap-4 pt-4 border-t border-gray-700">
+                <button onclick="saveRackEntry()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition shadow-md">
+                    Confirm & Save Entry
+                </button>
+                <button onclick="toggleModal()" class="w-1/3 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Core Logic utilizing LocalStorage
+        let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
+
+        // 1. Core State & Report Initialization
+        const dateInput = document.getElementById('dateFilter');
+        const searchInput = document.getElementById('searchQuery');
+        const modal = document.getElementById('rackModal');
+
+        // Set date picker to TODAY by default
+        dateInput.value = new Date().toISOString().split('T')[0];
+        loadAndDisplayReport();
+
+        // 2. Interactive Events
+        dateInput.addEventListener('change', loadAndDisplayReport);
+        searchInput.addEventListener('input', loadAndDisplayReport); // Real-time search filter
+
+        // 3. UI/UX Functions
+        function toggleModal() {
+            modal.classList.toggle('opacity-0');
+            modal.classList.toggle('pointer-events-none');
+            modal.querySelector('.bg-gray-900').classList.toggle('scale-100');
+            modal.querySelector('.bg-gray-900').classList.toggle('scale-95');
+        }
+
+        function saveRackEntry() {
+            const serialInput = document.getElementById('serial');
+            const newEntry = {
+                id: Date.now(), // Unique ID for later management
+                serial: serialInput.value.trim(),
+                location: document.getElementById('location').value.trim(),
+                notes: document.getElementById('notes').value.trim(),
+                active: document.getElementById('active').checked,
+            };
+
+            if (!newEntry.serial) return alert("Validation Error: Serial Number is required.");
+
+            // Store entries grouped by DATE (Researchable format)
+            const today = new Date().toISOString().split('T')[0];
+            if (!allRacks[today]) allRacks[today] = [];
+            allRacks[today].push(newEntry);
+
+            localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+            
+            // UI Feedback and Reset
+            alert(`Success: Rack ${newEntry.serial} logged for today.`);
+            serialInput.value = '';
+            document.getElementById('location').value = '';
+            document.getElementById('notes').value = '';
+            toggleModal();
+            loadAndDisplayReport();
+        }
+
+        // 4. Reporting & Research Logic (The Home Page View)
+        function loadAndDisplayReport() {
+            const selectedDate = dateInput.value;
+            const query = searchInput.value.toLowerCase();
+            document.getElementById('reportTitle').innerText = selectedDate;
+            const tbody = document.getElementById('reportTableBody');
+            const noDataMsg = document.getElementById('noDataMessage');
+            
+            tbody.innerHTML = '';
+            
+            // Get data for selected date
+            const dayRecords = allRacks[selectedDate] || [];
+            
+            // Apply Search Filter (Research)
+            const filteredRecords = dayRecords.filter(r => 
+                r.serial.toLowerCase().includes(query) || 
+                r.location.toLowerCase().includes(query)
+            );
+
+            if (filteredRecords.length === 0) {
+                noDataMsg.classList.remove('hidden');
+                return;
+            } else {
+                noDataMsg.classList.add('hidden');
+            }
+
+            // Build professional table rows
+            filteredRecords.forEach(r => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-800/50 transition-colors">
+                        <td class="px-6 py-4 font-mono font-medium text-white text-base">${r.serial}</td>
+                        <td class="px-6 py-4 text-gray-300">${r.location || '--'}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full ${r.active ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-red-950 text-red-300 border border-red-800'}">
+                                <span class="w-1.5 h-1.5 rounded-full ${r.active ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                                ${r.active ? 'Active' : 'Offline'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-400 max-w-md truncate" title="${r.notes}">${r.notes || '--'}</td>
+                    </tr>`;
+            });
+        }
+
+        // 5. Export Feature
+        function exportCSV() {
+            const selectedDate = dateInput.value;
+            const records = allRacks[selectedDate] || [];
+
+            if (records.length === 0) return alert(`No records found to export for ${selectedDate}.`);
+
+            let csvContent = "data:text/csv;charset=utf-8,Date,Serial,Location,Status,Notes\n";
+            records.forEach(r => {
+                csvContent += `${selectedDate},${r.serial},${r.location},${r.active ? 'Active' : 'Offline'},${r.notes}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `RackReport_${selectedDate}.csv`);
+            document.body.appendChild(link);
+            link.click();
+        }
+
+        // Management Utility
+        function clearDayData() {
+            const selectedDate = dateInput.value;
+            if(confirm(`WARNING: Are you sure you want to completely erase all ${allRacks[selectedDate]?.length || 0} records for ${selectedDate}?`)) {
+                delete allRacks[selectedDate];
+                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+                loadAndDisplayReport();
+            }
+        }
+    </script>
+</body>
+</html>
