@@ -56,10 +56,17 @@
                 </div>
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Search Records</label>
-                    <input type="text" id="searchQuery" placeholder="Search Serial, History, or Loc..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                    <div class="flex gap-2">
+                        <input type="text" id="searchQuery" placeholder="Serial, Loc, or History..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+                        <button onclick="loadAndDisplayReport()" class="bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="flex items-end gap-3">
-                    <button onclick="exportActiveTableOnly()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all">Export Report</button>
+                    <button onclick="exportActiveTableOnly()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all">
+                        Export Report
+                    </button>
                     <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 rounded-lg transition">Clear</button>
                 </div>
             </div>
@@ -88,14 +95,23 @@
                 </div>
             </div>
 
-            <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden opacity-50">
+            <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
                 <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-gray-400">Inactive History</h3>
                     <span id="inactiveCount" class="text-xs font-mono text-gray-500">0 Units</span>
                 </div>
-                <table class="w-full text-left">
-                    <tbody id="inactiveTableBody" class="divide-y divide-gray-800"></tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800/30 text-xs text-gray-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4 w-1/4">Serial Number</th>
+                                <th class="px-6 py-4 w-1/4">Location</th>
+                                <th class="px-6 py-4">Comments / Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inactiveTableBody" class="divide-y divide-gray-800 opacity-60"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -103,17 +119,38 @@
     <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
         <div class="bg-gray-900 w-full max-w-xl p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
             <h3 class="text-2xl font-bold text-blue-400">Log New Server Rack</h3>
-            <input type="text" id="serial" placeholder="Serial Number" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white uppercase">
+            <input type="text" id="serial" placeholder="Serial Number" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
             <input type="text" id="location" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-            <textarea id="notes" placeholder="General Information / History Log..." rows="5" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+            <textarea id="notes" placeholder="Initial Rack History..." rows="3" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
             <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg border border-gray-700">
                 <span class="font-medium text-gray-300">Active Status</span>
-                <input type="checkbox" id="active" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-blue-600" checked>
+                <input type="checkbox" id="active" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500" checked>
             </div>
             <div class="flex gap-3">
                 <button onclick="saveRackEntry()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Save Entry</button>
                 <button onclick="toggleModal('rackModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-2xl p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6">
+            <h3 class="text-2xl font-bold text-blue-400">Rack Information & History</h3>
+            <div class="bg-gray-800 p-4 rounded-lg border border-gray-700 flex justify-between items-center">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-mono">Serial Number</p>
+                    <p id="editModalSerial" class="text-lg font-bold text-white font-mono"></p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-medium text-gray-300">Active Status</span>
+                    <input type="checkbox" id="editModalStatus" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-emerald-500 focus:ring-emerald-500">
+                </div>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 uppercase font-mono mb-2">History Log</p>
+                <textarea id="editNotesArea" rows="10" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm focus:ring-1 focus:ring-blue-500"></textarea>
+            </div>
+            <button id="saveNotesBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl font-bold transition">Update Rack</button>
         </div>
     </div>
 
@@ -125,17 +162,7 @@
         </div>
     </div>
 
-    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] transition-all duration-300 opacity-0 pointer-events-none">
-        <div class="bg-gray-900 w-full max-w-2xl p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6">
-            <h3 class="text-2xl font-bold text-blue-400">General Information & History</h3>
-            <p id="editModalSerial" class="text-xs font-mono text-gray-500 uppercase"></p>
-            <textarea id="editNotesArea" rows="12" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm"></textarea>
-            <button id="saveNotesBtn" class="w-full bg-emerald-600 py-3 rounded-xl font-bold">Update History</button>
-        </div>
-    </div>
-
     <script>
-        // --- AUTH ---
         const auth = JSON.parse(localStorage.getItem('rackTrackerAuth')) || { user: 'Admin', pass: 'Admin', firstTime: true };
         function handleLogin() {
             const u = document.getElementById('userIn').value;
@@ -160,14 +187,14 @@
         }
         function logout() { location.reload(); }
 
-        // --- CORE LOGIC ---
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
         const dInput = document.getElementById('dateFilter');
         const sInput = document.getElementById('searchQuery');
         dInput.value = new Date().toISOString().split('T')[0];
 
         dInput.addEventListener('change', loadAndDisplayReport);
-        sInput.addEventListener('input', loadAndDisplayReport);
+        // Search triggered by button or Enter key
+        sInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') loadAndDisplayReport(); });
 
         function toggleModal(id) {
             const m = document.getElementById(id);
@@ -175,44 +202,16 @@
             m.classList.toggle('pointer-events-none');
         }
 
-        function exportActiveTableOnly() {
-            const element = document.getElementById('activeExportContainer');
-            element.classList.add('export-theme');
-            html2canvas(element, {
-                backgroundColor: "#030712", scale: 2, logging: false
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Active_Racks_${dInput.value}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                element.classList.remove('export-theme');
-            });
-        }
-
-        function openPassModal() {
-            const active = (allRacks[dInput.value] || []).filter(r => r.active);
-            if (active.length === 0) return alert("No active racks.");
-            document.getElementById('activeRackSelector').innerHTML = active.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('passModal');
-        }
-
-        function confirmPassRack() {
-            const id = parseInt(document.getElementById('activeRackSelector').value);
-            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[dInput.value][idx].active = false;
-                syncAndRefresh();
-                toggleModal('passModal');
-            }
-        }
-
         function openEditNotes(date, id) {
             const rack = allRacks[date].find(r => r.id === id);
-            document.getElementById('editModalSerial').innerText = `SN: ${rack.serial}`;
+            document.getElementById('editModalSerial').innerText = rack.serial;
+            document.getElementById('editModalStatus').checked = rack.active;
             document.getElementById('editNotesArea').value = rack.notes || "";
+            
             document.getElementById('saveNotesBtn').onclick = function() {
                 const index = allRacks[date].findIndex(r => r.id === id);
                 allRacks[date][index].notes = document.getElementById('editNotesArea').value;
+                allRacks[date][index].active = document.getElementById('editModalStatus').checked;
                 syncAndRefresh();
                 toggleModal('editNotesModal');
             };
@@ -220,13 +219,13 @@
         }
 
         function saveRackEntry() {
-            const serial = document.getElementById('serial').value.trim().toUpperCase();
+            const serial = document.getElementById('serial').value.trim();
             if(!serial) return;
             const entry = {
                 id: Date.now(),
                 serial: serial,
                 location: document.getElementById('location').value.trim(),
-                notes: document.getElementById('notes').value.trim(), // History/General Info
+                notes: document.getElementById('notes').value.trim(),
                 actions: "",
                 active: document.getElementById('active').checked,
             };
@@ -235,14 +234,6 @@
             syncAndRefresh();
             ['serial', 'location', 'notes'].forEach(id => document.getElementById(id).value = '');
             toggleModal('rackModal');
-        }
-
-        function updateAction(date, id, text) {
-            const idx = allRacks[date].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[date][idx].actions = text;
-                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
-            }
         }
 
         function loadAndDisplayReport() {
@@ -254,11 +245,9 @@
             aTbody.innerHTML = ''; iTbody.innerHTML = '';
 
             const records = allRacks[date] || [];
-
-            // UPDATED SEARCH LOGIC: Check serial, location, AND notes (history)
             const filtered = records.filter(r => 
                 r.serial.toLowerCase().includes(q) || 
-                r.location.toLowerCase().includes(q) || 
+                r.location.toLowerCase().includes(q) ||
                 (r.notes && r.notes.toLowerCase().includes(q))
             );
 
@@ -285,9 +274,46 @@
             document.getElementById('inactiveCount').innerText = `${iCount} Units`;
         }
 
+        function updateAction(date, id, text) {
+            const idx = allRacks[date].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[date][idx].actions = text;
+                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+            }
+        }
+
         function syncAndRefresh() {
             localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
             loadAndDisplayReport();
+        }
+
+        function exportActiveTableOnly() {
+            const element = document.getElementById('activeExportContainer');
+            element.classList.add('export-theme');
+            html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Active_Racks_${dInput.value}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                element.classList.remove('export-theme');
+            });
+        }
+
+        function openPassModal() {
+            const active = (allRacks[dInput.value] || []).filter(r => r.active);
+            if (active.length === 0) return alert("No active racks.");
+            document.getElementById('activeRackSelector').innerHTML = active.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('activeRackSelector').value);
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value][idx].active = false;
+                syncAndRefresh();
+                toggleModal('passModal');
+            }
         }
 
         function clearDayData() {
