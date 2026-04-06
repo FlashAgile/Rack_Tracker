@@ -12,7 +12,6 @@
         [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
         #mainApp { display: none; }
         .export-theme { background-color: #030712 !important; padding: 40px !important; width: 1000px !important; }
-        .search-highlight { border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.1); }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
@@ -38,7 +37,7 @@
                 <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-sm mr-4 font-medium">Logout</button>
                 <button onclick="openDeleteModal()" class="flex items-center gap-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Delete Rack</button>
                 <button onclick="openPassModal()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Pass Rack</button>
-                <button onclick="toggleModal('rackModal')" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Add New Rack</button>
+                <button onclick="openAddModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Add New Rack</button>
             </div>
         </nav>
 
@@ -81,7 +80,6 @@
                         <tbody id="searchResultsBody" class="divide-y divide-gray-800"></tbody>
                     </table>
                 </div>
-                <div class="border-b border-gray-800 pb-4"></div>
             </div>
 
             <div id="activeExportContainer" class="rounded-2xl overflow-hidden">
@@ -111,24 +109,20 @@
         </div>
     </div>
 
-    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
-        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6">
-            <h3 class="text-2xl font-bold text-red-400">Archive Rack</h3>
-            <p class="text-sm text-gray-400 italic">This removes it from the current view but keeps the history searchable.</p>
-            <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
-            <div class="flex gap-3">
-                <button onclick="confirmDeleteRack()" class="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-xl font-bold">Confirm Archive</button>
-                <button onclick="toggleModal('deleteModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
         <div class="bg-gray-900 w-full max-w-xl p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
             <h3 class="text-2xl font-bold text-blue-400">Log New Server Rack</h3>
-            <input type="text" id="serial" placeholder="Serial Number" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-            <input type="text" id="location" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-            <textarea id="notes" placeholder="Initial Rack History..." rows="3" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+            <div class="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl space-y-2">
+                <label class="text-xs font-bold text-blue-400 uppercase">Pull from Previous Day Active List</label>
+                <select id="prevDaySelector" onchange="autoFillFromPrev()" class="w-full bg-gray-800 p-2 rounded border border-gray-700 text-sm text-white">
+                    <option value="">-- Select an active rack from yesterday --</option>
+                </select>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="serial" placeholder="Serial Number" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="text" id="location" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <textarea id="notes" placeholder="Initial Rack History..." rows="3" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+            </div>
             <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg border border-gray-700">
                 <span class="font-medium text-gray-300">Active Status</span>
                 <input type="checkbox" id="active" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-blue-600" checked>
@@ -136,6 +130,17 @@
             <div class="flex gap-3">
                 <button onclick="saveRackEntry()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Save Entry</button>
                 <button onclick="toggleModal('rackModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6">
+            <h3 class="text-2xl font-bold text-red-400">Archive Rack</h3>
+            <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+            <div class="flex gap-3">
+                <button onclick="confirmDeleteRack()" class="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-xl font-bold">Confirm Archive</button>
+                <button onclick="toggleModal('deleteModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
             </div>
         </div>
     </div>
@@ -164,7 +169,9 @@
     </div>
 
     <script>
-        const auth = { user: 'Admin', pass: 'Admin' };
+        // Updated credentials
+        const auth = { user: 'Admin', pass: '0122' };
+
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
@@ -172,7 +179,7 @@
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 loadAndDisplayReport();
-            } else alert("Invalid.");
+            } else alert("Invalid Credentials.");
         }
         function logout() { location.reload(); }
 
@@ -192,74 +199,86 @@
             m.classList.toggle('pointer-events-none');
         }
 
-        // --- GLOBAL SEARCH LOGIC ---
+        function openAddModal() {
+            const selector = document.getElementById('prevDaySelector');
+            selector.innerHTML = '<option value="">-- Select an active rack from yesterday --</option>';
+            const currentDate = new Date(dInput.value);
+            currentDate.setDate(currentDate.getDate() - 1);
+            const prevDateStr = currentDate.toISOString().split('T')[0];
+            const prevRacks = allRacks[prevDateStr] || [];
+            const activePrev = prevRacks.filter(r => r.active);
+
+            if(activePrev.length > 0) {
+                activePrev.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = JSON.stringify({s: r.serial, l: r.location, n: r.notes});
+                    opt.innerText = `${r.serial} (${r.location || 'No Loc'})`;
+                    selector.appendChild(opt);
+                });
+            } else {
+                const opt = document.createElement('option');
+                opt.disabled = true;
+                opt.innerText = "No active racks found for " + prevDateStr;
+                selector.appendChild(opt);
+            }
+            toggleModal('rackModal');
+        }
+
+        function autoFillFromPrev() {
+            const val = document.getElementById('prevDaySelector').value;
+            if(!val) return;
+            const data = JSON.parse(val);
+            document.getElementById('serial').value = data.s;
+            document.getElementById('location').value = data.l;
+            document.getElementById('notes').value = data.n;
+        }
+
         function performGlobalSearch() {
             const q = sInput.value.toLowerCase().trim();
             if(!q) return closeSearch();
-
             const resultsSection = document.getElementById('searchResultsSection');
             const resultsBody = document.getElementById('searchResultsBody');
             resultsBody.innerHTML = '';
             resultsSection.classList.remove('hidden');
-
             let foundAny = false;
 
-            // 1. Search Active/Inactive across ALL dates
             Object.keys(allRacks).forEach(date => {
                 allRacks[date].forEach(r => {
-                    if(r.serial.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q)) || (r.notes && r.notes.toLowerCase().includes(q))) {
+                    if(r.serial.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q))) {
                         appendSearchResult(resultsBody, r, date, "Live Log");
                         foundAny = true;
                     }
                 });
             });
-
-            // 2. Search Archive
             rackArchive.forEach(r => {
-                if(r.serial.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q)) || (r.notes && r.notes.toLowerCase().includes(q))) {
-                    appendSearchResult(resultsBody, r, r.originalLogDate || "Unknown", "Archived");
+                if(r.serial.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q))) {
+                    appendSearchResult(resultsBody, r, r.originalLogDate || "Archive", "Archived");
                     foundAny = true;
                 }
             });
-
-            if(!foundAny) {
-                resultsBody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500 italic">No matching history found in logs or archive.</td></tr>`;
-            }
+            if(!foundAny) resultsBody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">No matches found.</td></tr>';
         }
 
         function appendSearchResult(container, rack, date, status) {
-            const row = `
-                <tr class="hover:bg-blue-900/10 border-l-4 ${status === 'Archived' ? 'border-red-900/50' : 'border-emerald-900/50'}">
-                    <td class="px-6 py-4 text-xs font-mono text-gray-400">${date} <br> <span class="text-[10px] uppercase opacity-50">${status}</span></td>
-                    <td class="px-6 py-4">
-                        <div class="font-bold text-blue-300 font-mono">${rack.serial}</div>
-                        <div class="text-xs text-gray-500">${rack.location || '--'}</div>
-                    </td>
-                    <td class="px-6 py-4 text-xs text-gray-300 max-w-md truncate whitespace-pre-wrap">${rack.notes || 'No notes found.'}</td>
-                    <td class="px-6 py-4">
-                        <button onclick="openEditNotes('${date}', ${rack.id})" class="text-xs bg-gray-800 hover:bg-blue-600 px-3 py-1 rounded transition">View History</button>
-                    </td>
+            container.innerHTML += `
+                <tr class="hover:bg-blue-900/10 border-l-4 ${status === 'Archived' ? 'border-red-900' : 'border-emerald-900'}">
+                    <td class="px-6 py-4 text-xs font-mono text-gray-400">${date}<br><span class="opacity-50 text-[10px] uppercase">${status}</span></td>
+                    <td class="px-6 py-4"><div class="font-bold text-blue-300 font-mono">${rack.serial}</div><div class="text-xs text-gray-500">${rack.location || '--'}</div></td>
+                    <td class="px-6 py-4 text-xs text-gray-300 max-w-md truncate">${rack.notes || ''}</td>
+                    <td class="px-6 py-4"><button onclick="openEditNotes('${date}', ${rack.id})" class="text-xs bg-gray-800 px-3 py-1 rounded">View</button></td>
                 </tr>`;
-            container.innerHTML += row;
         }
 
-        function closeSearch() {
-            document.getElementById('searchResultsSection').classList.add('hidden');
-            sInput.value = '';
-            loadAndDisplayReport();
-        }
+        function closeSearch() { document.getElementById('searchResultsSection').classList.add('hidden'); sInput.value = ''; loadAndDisplayReport(); }
 
-        // --- TABLE LOGIC ---
         function loadAndDisplayReport() {
             const date = dInput.value;
             document.getElementById('exportDateLabel').innerText = date;
             const aTbody = document.getElementById('activeTableBody');
             const iTbody = document.getElementById('inactiveTableBody');
             aTbody.innerHTML = ''; iTbody.innerHTML = '';
-            
             const current = allRacks[date] || [];
             let aCount = 0, iCount = 0;
-
             current.forEach(r => {
                 const row = `<tr>
                     <td class="px-6 py-4"><button onclick="openEditNotes('${date}', ${r.id})" class="text-blue-400 font-mono font-bold underline decoration-dotted">${r.serial}</button></td>
@@ -272,18 +291,10 @@
             document.getElementById('inactiveCount').innerText = `${iCount} Units`;
         }
 
-        // --- DATA SYNC ---
         function saveRackEntry() {
             const serial = document.getElementById('serial').value.trim();
             if(!serial) return;
-            const entry = {
-                id: Date.now(),
-                serial: serial,
-                location: document.getElementById('location').value.trim(),
-                notes: document.getElementById('notes').value.trim(),
-                actions: "",
-                active: document.getElementById('active').checked,
-            };
+            const entry = { id: Date.now(), serial, location: document.getElementById('location').value, notes: document.getElementById('notes').value, actions: "", active: document.getElementById('active').checked };
             if (!allRacks[dInput.value]) allRacks[dInput.value] = [];
             allRacks[dInput.value].push(entry);
             syncAndRefresh();
@@ -293,26 +304,22 @@
 
         function confirmDeleteRack() {
             const id = parseInt(document.getElementById('deleteRackSelector').value);
-            const rackIndex = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (rackIndex !== -1) {
-                const archivedRack = allRacks[dInput.value][rackIndex];
-                rackArchive.push({...archivedRack, archivedDate: new Date().toISOString(), originalLogDate: dInput.value});
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                rackArchive.push({...allRacks[dInput.value][idx], archivedDate: new Date().toISOString(), originalLogDate: dInput.value});
                 localStorage.setItem('rackTrackerArchive', JSON.stringify(rackArchive));
-                allRacks[dInput.value].splice(rackIndex, 1);
+                allRacks[dInput.value].splice(idx, 1);
                 syncAndRefresh();
                 toggleModal('deleteModal');
             }
         }
 
         function openEditNotes(date, id) {
-            // Find in current logs or archive
             let rack = (allRacks[date] || []).find(r => r.id === id) || rackArchive.find(r => r.id === id);
-            if(!rack) return alert("Record not found.");
-
+            if(!rack) return alert("Not found.");
             document.getElementById('editModalSerial').innerText = rack.serial;
             document.getElementById('editModalStatus').checked = rack.active;
             document.getElementById('editNotesArea').value = rack.notes || "";
-            
             document.getElementById('saveNotesBtn').onclick = function() {
                 const idx = (allRacks[date] || []).findIndex(r => r.id === id);
                 if(idx !== -1) {
@@ -342,7 +349,7 @@
 
         function openDeleteModal() {
             const current = allRacks[dInput.value] || [];
-            if (current.length === 0) return alert("No racks found for today.");
+            if (current.length === 0) return alert("No records.");
             document.getElementById('deleteRackSelector').innerHTML = current.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
             toggleModal('deleteModal');
         }
@@ -357,16 +364,10 @@
         function confirmPassRack() {
             const id = parseInt(document.getElementById('activeRackSelector').value);
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[dInput.value][idx].active = false;
-                syncAndRefresh();
-                toggleModal('passModal');
-            }
+            if (idx !== -1) { allRacks[dInput.value][idx].active = false; syncAndRefresh(); toggleModal('passModal'); }
         }
 
-        function clearDayData() {
-            if(confirm("Wipe all data for today? (Does NOT clear archive)")) { delete allRacks[dInput.value]; syncAndRefresh(); }
-        }
+        function clearDayData() { if(confirm("Wipe day?")) { delete allRacks[dInput.value]; syncAndRefresh(); } }
 
         function exportActiveTableOnly() {
             const element = document.getElementById('activeExportContainer');
@@ -382,4 +383,3 @@
     </script>
 </body>
 </html>
-
