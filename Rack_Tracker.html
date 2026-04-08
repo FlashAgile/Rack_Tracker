@@ -97,6 +97,7 @@
                                 <th class="px-6 py-3">Date</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3">Status</th>
                                 <th class="px-6 py-3">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
                                 <th class="px-6 py-3">Checked By</th>
@@ -284,10 +285,10 @@
                     <td class="px-6 py-4 text-gray-300">${r.location || '--'}</td>
                     <td class="px-6 py-4 text-gray-400 font-medium">${r.status || '--'}</td>
                     <td class="px-6 py-4">
-                        <div contenteditable="true" class="bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-gray-400 italic" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || 'No issues listed'}</div>
+                        <div contenteditable="true" class="bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-gray-400 italic min-h-[1.5em] min-w-[100px]" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <div contenteditable="true" class="bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-emerald-400 font-medium" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || 'No action recorded'}</div>
+                        <div contenteditable="true" class="bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-emerald-400 font-medium min-h-[1.5em] min-w-[100px]" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div>
                     </td>
                     <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
                 </tr>`;
@@ -306,7 +307,7 @@
 
         function openAddModal() {
             const selector = document.getElementById('historySelector');
-            selector.innerHTML = '<option value="">-- Search for a previous Rack ID --</option>';
+            selector.innerHTML = '<option value="">-- Select a previous Rack ID --</option>';
             const uniqueRacks = {};
             Object.values(allRacks).forEach(dayArray => dayArray.forEach(r => uniqueRacks[r.serial] = r.location));
             rackArchive.forEach(r => uniqueRacks[r.serial] = r.location);
