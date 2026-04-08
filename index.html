@@ -290,7 +290,6 @@
                         <button onclick="openEditNotes('${date}', ${r.id})" class="hover:underline">${r.serial}</button>
                     </td>
                     <td class="px-6 py-4 text-gray-300">${r.location || '--'}</td>
-                    <td class="px-6 py-4 text-gray-400 font-medium">${r.status || '--'}</td>
                     <td class="px-6 py-4">
                         <div contenteditable="true" class="editable-cell bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-gray-400 italic" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div>
                     </td>
@@ -432,7 +431,7 @@
             html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `Active_Rack_Report_${dInput.value}.png`;
-                link.href = canvas.toToDataURL("image/png");
+                link.href = canvas.toDataURL("image/png");
                 link.click();
                 element.classList.remove('export-theme');
             });
