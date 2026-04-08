@@ -41,9 +41,9 @@
             <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight">Rack<span class="text-white">Tracker</span> PRO</h1>
             <div class="flex gap-3">
                 <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-sm mr-4 font-medium">Logout</button>
-                <button onclick="openDeleteModal()" class="bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Delete Rack</button>
-                <button onclick="openPassModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Pass Rack</button>
-                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md transition-all text-sm">Add New Rack</button>
+                <button onclick="openDeleteModal()" class="bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 font-semibold py-2 px-5 rounded-full shadow-md text-sm">Delete Rack</button>
+                <button onclick="openPassModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-full shadow-md text-sm">Pass Rack</button>
+                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md text-sm">Add New Rack</button>
             </div>
         </nav>
 
@@ -54,17 +54,15 @@
                     <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 </div>
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-400">Search Records (Universal)</label>
+                    <label class="text-sm font-medium text-gray-400">Database Import (Merge Files)</label>
                     <div class="flex gap-2">
-                        <input type="text" id="searchQuery" placeholder="SN, Location, or History..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
-                        <button onclick="performGlobalSearch()" class="bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        </button>
+                        <button onclick="document.getElementById('importFile').click()" class="w-full bg-gray-800 hover:bg-gray-700 text-xs font-bold p-3 rounded-lg border border-gray-700 transition">Upload Sync File</button>
+                        <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
                     </div>
                 </div>
                 <div class="flex items-end gap-3">
-                    <button onclick="exportActiveTableOnly()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md">Export Report</button>
-                    <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 rounded-lg transition text-xs">Clear Day</button>
+                    <button onclick="exportReport()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all active:scale-95">Export Report</button>
+                    <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 rounded-lg text-xs">Clear Day</button>
                 </div>
             </div>
 
@@ -112,10 +110,7 @@
                     <input type="text" id="editModalLocation" class="w-full bg-gray-800 p-3 rounded border border-gray-700 text-white">
                 </div>
             </div>
-            <div class="space-y-1">
-                <label class="text-xs text-gray-500 font-bold uppercase">History Log</label>
-                <textarea id="editNotesArea" rows="8" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm"></textarea>
-            </div>
+            <textarea id="editNotesArea" rows="8" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm"></textarea>
             <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg">
                 <span class="text-sm font-medium text-gray-300">Active Status</span>
                 <input type="checkbox" id="editModalStatus" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-emerald-500">
@@ -172,18 +167,14 @@
         const auth = { user: 'Admin', pass: '0122' };
         let currentSort = { key: 'id', dir: 'asc' };
 
-        // --- AUTH & REMEMBER ME ---
         window.onload = function() {
-            if(localStorage.getItem('rememberMe') === 'true') {
-                enterApp();
-            }
+            if(localStorage.getItem('rememberMe') === 'true') enterApp();
         };
 
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
             const remember = document.getElementById('rememberMe').checked;
-            
             if(u === auth.user && p === auth.pass) { 
                 if(remember) localStorage.setItem('rememberMe', 'true');
                 enterApp();
@@ -196,11 +187,55 @@
             loadAndDisplayReport();
         }
 
-        function logout() { 
-            localStorage.removeItem('rememberMe');
-            location.reload(); 
+        function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
+
+        // --- DUAL-ACTION EXPORT ---
+        function exportReport() {
+            // 1. Export JSON for Syncing
+            const data = {
+                db: JSON.parse(localStorage.getItem('rackTrackerDB')) || {},
+                archive: JSON.parse(localStorage.getItem('rackTrackerArchive')) || []
+            };
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `RackTracker_Sync_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            // 2. Export Screenshot for Documentation
+            const element = document.getElementById('activeExportContainer');
+            element.classList.add('export-theme');
+            html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Active_Racks_Report_${dInput.value}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                element.classList.remove('export-theme');
+            });
         }
 
+        function importDatabase(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if(confirm("Merge imported data with current logs?")) {
+                        const currentDB = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
+                        const mergedDB = { ...currentDB, ...imported.db };
+                        localStorage.setItem('rackTrackerDB', JSON.stringify(mergedDB));
+                        localStorage.setItem('rackTrackerArchive', JSON.stringify(imported.archive || []));
+                        location.reload();
+                    }
+                } catch(err) { alert("Invalid file format."); }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- APP LOGIC ---
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
         let rackArchive = JSON.parse(localStorage.getItem('rackTrackerArchive')) || [];
 
@@ -215,12 +250,8 @@
         }
 
         function setSort(key) {
-            if(currentSort.key === key) {
-                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.key = key;
-                currentSort.dir = 'asc';
-            }
+            if(currentSort.key === key) { currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc'; } 
+            else { currentSort.key = key; currentSort.dir = 'asc'; }
             loadAndDisplayReport();
         }
 
@@ -231,8 +262,6 @@
             aTbody.innerHTML = ''; iTbody.innerHTML = '';
             
             let current = [...(allRacks[date] || [])];
-            
-            // Apply Sort
             current.sort((a, b) => {
                 let valA = (a[currentSort.key] || "").toString().toLowerCase();
                 let valB = (b[currentSort.key] || "").toString().toLowerCase();
@@ -241,50 +270,55 @@
                 return 0;
             });
 
-            let aCount = 0, iCount = 0;
             current.forEach(r => {
                 const row = `<tr>
                     <td class="px-6 py-4 font-mono font-bold text-blue-400">
-                        <button onclick="openEditNotes('${date}', ${r.id})" class="hover:underline underline-offset-4">${r.serial}</button>
+                        <button onclick="openEditNotes('${date}', ${r.id})" class="hover:underline">${r.serial}</button>
                     </td>
                     <td class="px-6 py-4 text-gray-300 text-sm">${r.location || '--'}</td>
                     <td class="px-6 py-4"><div contenteditable="true" class="bg-gray-950/50 p-2 border border-gray-800 rounded text-sm text-white" onblur="updateAction('${date}', ${r.id}, this.innerText)">${r.actions}</div></td>
                 </tr>`;
-                if(r.active) { aTbody.innerHTML += row; aCount++; } else { iTbody.innerHTML += row; iCount++; }
+                r.active ? (aTbody.innerHTML += row) : (iTbody.innerHTML += row);
             });
-            document.getElementById('activeCount').innerText = `${aCount} Units`;
-            document.getElementById('inactiveCount').innerText = `${iCount} Units`;
+            document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
+            document.getElementById('inactiveCount').innerText = `${current.filter(r=>!r.active).length} Units`;
         }
 
         function openEditNotes(date, id) {
-            let rack = (allRacks[date] || []).find(r => r.id === id) || rackArchive.find(r => r.id === id);
+            let rack = (allRacks[date] || []).find(r => r.id === id);
             if(!rack) return;
-
             document.getElementById('editModalSerial').innerText = rack.serial;
             document.getElementById('editModalLocation').value = rack.location || "";
             document.getElementById('editModalStatus').checked = rack.active;
             document.getElementById('editNotesArea').value = rack.notes || "";
-            
             document.getElementById('saveNotesBtn').onclick = function() {
-                const idx = (allRacks[date] || []).findIndex(r => r.id === id);
-                if(idx !== -1) {
-                    allRacks[date][idx].location = document.getElementById('editModalLocation').value;
-                    allRacks[date][idx].notes = document.getElementById('editNotesArea').value;
-                    allRacks[date][idx].active = document.getElementById('editModalStatus').checked;
-                } else {
-                    const archIdx = rackArchive.findIndex(r => r.id === id);
-                    rackArchive[archIdx].location = document.getElementById('editModalLocation').value;
-                    rackArchive[archIdx].notes = document.getElementById('editNotesArea').value;
-                    rackArchive[archIdx].active = document.getElementById('editModalStatus').checked;
-                    localStorage.setItem('rackTrackerArchive', JSON.stringify(rackArchive));
-                }
+                const idx = allRacks[date].findIndex(r => r.id === id);
+                allRacks[date][idx].location = document.getElementById('editModalLocation').value;
+                allRacks[date][idx].notes = document.getElementById('editNotesArea').value;
+                allRacks[date][idx].active = document.getElementById('editModalStatus').checked;
                 syncAndRefresh();
                 toggleModal('editNotesModal');
             };
             toggleModal('editNotesModal');
         }
 
-        // --- PREVIOUS DAY HELPERS ---
+        function saveRackEntry() {
+            const s = document.getElementById('serial').value.trim();
+            if(!s) return;
+            const entry = { id: Date.now(), serial: s, location: document.getElementById('location').value, notes: document.getElementById('notes').value, actions: "", active: document.getElementById('active').checked };
+            if (!allRacks[dInput.value]) allRacks[dInput.value] = [];
+            allRacks[dInput.value].push(entry);
+            syncAndRefresh();
+            toggleModal('rackModal');
+        }
+
+        function syncAndRefresh() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
+
+        function updateAction(date, id, text) {
+            const idx = (allRacks[date] || []).findIndex(r => r.id === id);
+            if (idx !== -1) { allRacks[date][idx].actions = text; syncAndRefresh(); }
+        }
+
         function openAddModal() {
             const selector = document.getElementById('prevDaySelector');
             selector.innerHTML = '<option value="">-- Select an active rack --</option>';
@@ -308,24 +342,11 @@
             document.getElementById('notes').value = data.n;
         }
 
-        function saveRackEntry() {
-            const s = document.getElementById('serial').value.trim();
-            if(!s) return;
-            const entry = { id: Date.now(), serial: s, location: document.getElementById('location').value, notes: document.getElementById('notes').value, actions: "", active: document.getElementById('active').checked };
-            if (!allRacks[dInput.value]) allRacks[dInput.value] = [];
-            allRacks[dInput.value].push(entry);
-            syncAndRefresh();
-            toggleModal('rackModal');
-        }
-
-        function syncAndRefresh() {
-            localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
-            loadAndDisplayReport();
-        }
-
-        function updateAction(date, id, text) {
-            const idx = (allRacks[date] || []).findIndex(r => r.id === id);
-            if (idx !== -1) { allRacks[date][idx].actions = text; syncAndRefresh(); }
+        function openDeleteModal() {
+            const cur = allRacks[dInput.value] || [];
+            if (cur.length === 0) return alert("No records.");
+            document.getElementById('deleteRackSelector').innerHTML = cur.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('deleteModal');
         }
 
         function confirmDeleteRack() {
@@ -338,13 +359,6 @@
                 syncAndRefresh();
                 toggleModal('deleteModal');
             }
-        }
-
-        function openDeleteModal() {
-            const cur = allRacks[dInput.value] || [];
-            if (cur.length === 0) return alert("No records.");
-            document.getElementById('deleteRackSelector').innerHTML = cur.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('deleteModal');
         }
 
         function openPassModal() {
@@ -361,17 +375,6 @@
         }
 
         function clearDayData() { if(confirm("Clear today's logs?")) { delete allRacks[dInput.value]; syncAndRefresh(); } }
-
-        function exportActiveTableOnly() {
-            const element = document.getElementById('activeExportContainer');
-            element.classList.add('export-theme');
-            html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Active_Racks_${dInput.value}.png`;
-                link.href = canvas.toDataURL("image/png"); link.click();
-                element.classList.remove('export-theme');
-            });
-        }
     </script>
 </body>
 </html>
