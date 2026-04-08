@@ -37,47 +37,66 @@
     </div>
 
     <div id="mainApp">
-        <nav class="flex items-center justify-between pb-8 border-b border-gray-800 mb-8">
-            <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight">Rack<span class="text-white">Tracker</span> PRO</h1>
-            <div class="flex gap-3">
-                <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-sm mr-4 font-medium">Logout</button>
-                <button onclick="openDeleteModal()" class="bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 font-semibold py-2 px-5 rounded-full shadow-md text-sm">Delete Rack</button>
-                <button onclick="openPassModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-5 rounded-full shadow-md text-sm">Pass Rack</button>
-                <button onclick="openAddModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full shadow-md text-sm">Add New Rack</button>
-            </div>
+        <nav class="flex flex-col pb-8 border-b border-gray-800 mb-8">
+            <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight leading-none">Rack<span class="text-white">Tracker</span> PRO</h1>
+            <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-xs font-medium w-fit mt-1">Logout Account</button>
         </nav>
 
         <div class="max-w-7xl mx-auto space-y-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Research Date</label>
-                    <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                    <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
                 </div>
+                
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-400">Database Import (Merge Files)</label>
+                    <label class="text-sm font-medium text-gray-400">Search Records</label>
                     <div class="flex gap-2">
-                        <button onclick="document.getElementById('importFile').click()" class="w-full bg-gray-800 hover:bg-gray-700 text-xs font-bold p-3 rounded-lg border border-gray-700 transition">Upload Sync File</button>
-                        <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
+                        <input type="text" id="searchQuery" placeholder="SN, Location, or History..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
+                        <button onclick="performGlobalSearch()" class="bg-blue-600 hover:bg-blue-700 p-3 rounded-lg text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </button>
                     </div>
                 </div>
-                <div class="flex items-end gap-3">
-                    <button onclick="exportReport()" class="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all active:scale-95">Export Report</button>
-                    <button onclick="clearDayData()" class="px-4 h-12 bg-gray-800 hover:bg-red-950 text-gray-400 rounded-lg text-xs">Clear Day</button>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Action Menu</label>
+                    <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold focus:ring-2 focus:ring-purple-500">
+                        <option value="" class="bg-gray-900">-- Select Action --</option>
+                        <option value="add" class="bg-gray-900 text-white">Add New Rack</option>
+                        <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
+                        <option value="export" class="bg-gray-900 text-white">Export Report (.json & .png)</option>
+                        <option value="import" class="bg-gray-900 text-white">Import File</option>
+                        <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
+                    </select>
+                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
                 </div>
             </div>
 
-            <div id="activeExportContainer" class="rounded-2xl overflow-hidden">
-                <div class="bg-gray-900 border border-emerald-900/30 shadow-xl">
-                    <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
-                        <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
-                    </div>
+            <div id="searchResultsSection" class="hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-blue-400">Search Results</h3>
+                    <button onclick="closeSearch()" class="text-gray-500 hover:text-white text-sm underline">Clear Search</button>
+                </div>
+                <div class="bg-gray-900 border border-blue-900/30 rounded-2xl overflow-hidden shadow-2xl">
+                    <table class="w-full text-left">
+                        <tbody id="searchResultsBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="activeExportContainer" class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
+                <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
+                    <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="bg-gray-800 text-xs text-gray-400 uppercase">
                             <tr>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Serial Number ↕</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
-                                <th class="px-6 py-3">Notes / Actions</th>
+                                <th class="px-6 py-3">History / Notes</th>
                             </tr>
                         </thead>
                         <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
@@ -85,9 +104,21 @@
                 </div>
             </div>
 
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-blue-900/30">
+                <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
+                    <span id="passedCount" class="text-xs font-mono bg-blue-900/50 px-2 py-1 rounded border border-blue-700 text-blue-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900">
+                    <table class="w-full text-left">
+                        <tbody id="passedTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
                 <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-                    <h3 class="text-lg font-bold text-gray-400">Inactive History</h3>
+                    <h3 class="text-lg font-bold text-gray-400">Archive Logs</h3>
                     <span id="inactiveCount" class="text-xs font-mono text-gray-500">0 Units</span>
                 </div>
                 <table class="w-full text-left">
@@ -115,7 +146,8 @@
                 <span class="text-sm font-medium text-gray-300">Active Status</span>
                 <input type="checkbox" id="editModalStatus" class="w-6 h-6 rounded bg-gray-700 border-gray-600 text-emerald-500">
             </div>
-            <button id="saveNotesBtn" class="w-full bg-emerald-600 py-3 rounded-xl font-bold">Save Changes</button>
+            <button id="saveNotesBtn" class="w-full bg-emerald-600 py-3 rounded-xl font-bold shadow-lg">Save Changes</button>
+            <button onclick="toggleModal('editNotesModal')" class="w-full text-gray-500 text-sm">Close</button>
         </div>
     </div>
 
@@ -123,7 +155,7 @@
         <div class="bg-gray-900 w-full max-w-xl p-8 rounded-2xl border border-gray-700 shadow-2xl space-y-6">
             <h3 class="text-2xl font-bold text-blue-400">Log New Server Rack</h3>
             <div class="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl space-y-2">
-                <label class="text-xs font-bold text-blue-400 uppercase">Pull from Previous Day</label>
+                <label class="text-xs font-bold text-blue-400 uppercase">Pull Previous Day Data</label>
                 <select id="prevDaySelector" onchange="autoFillFromPrev()" class="w-full bg-gray-800 p-2 rounded border border-gray-700 text-sm text-white">
                     <option value="">-- Select an active rack --</option>
                 </select>
@@ -133,14 +165,8 @@
                 <input type="text" id="location" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 <textarea id="notes" placeholder="Initial Rack History..." rows="3" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
             </div>
-            <div class="flex items-center justify-between bg-gray-800 p-4 rounded-lg">
-                <span class="font-medium text-gray-300">Active Status</span>
-                <input type="checkbox" id="active" class="w-6 h-6 text-blue-600" checked>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="saveRackEntry()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Save Entry</button>
-                <button onclick="toggleModal('rackModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
-            </div>
+            <button onclick="saveRackEntry()" class="w-full bg-blue-600 py-3 rounded-xl font-bold">Save Entry</button>
+            <button onclick="toggleModal('rackModal')" class="w-full text-gray-500 text-sm">Cancel</button>
         </div>
     </div>
 
@@ -148,10 +174,8 @@
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6">
             <h3 class="text-2xl font-bold text-red-400">Archive Rack</h3>
             <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
-            <div class="flex gap-3">
-                <button onclick="confirmDeleteRack()" class="flex-1 bg-red-600 hover:bg-red-700 py-3 rounded-xl font-bold">Confirm Archive</button>
-                <button onclick="toggleModal('deleteModal')" class="px-6 bg-gray-800 rounded-xl">Cancel</button>
-            </div>
+            <button onclick="confirmDeleteRack()" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl font-bold">Confirm Archive</button>
+            <button onclick="toggleModal('deleteModal')" class="w-full text-gray-500 text-sm">Cancel</button>
         </div>
     </div>
 
@@ -160,12 +184,15 @@
             <h3 class="text-2xl font-bold text-emerald-400">Pass Rack</h3>
             <select id="activeRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
             <button onclick="confirmPassRack()" class="w-full bg-emerald-600 py-3 rounded-xl font-bold">Confirm Pass</button>
+            <button onclick="toggleModal('passModal')" class="w-full text-gray-500 text-sm">Cancel</button>
         </div>
     </div>
 
     <script>
         const auth = { user: 'Admin', pass: '0122' };
         let currentSort = { key: 'id', dir: 'asc' };
+        let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
+        let rackArchive = JSON.parse(localStorage.getItem('rackTrackerArchive')) || [];
 
         window.onload = function() {
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
@@ -189,59 +216,19 @@
 
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
 
-        // --- DUAL-ACTION EXPORT ---
-        function exportReport() {
-            // 1. Export JSON for Syncing
-            const data = {
-                db: JSON.parse(localStorage.getItem('rackTrackerDB')) || {},
-                archive: JSON.parse(localStorage.getItem('rackTrackerArchive')) || []
-            };
-            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `RackTracker_Sync_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-
-            // 2. Export Screenshot for Documentation
-            const element = document.getElementById('activeExportContainer');
-            element.classList.add('export-theme');
-            html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Active_Racks_Report_${dInput.value}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                element.classList.remove('export-theme');
-            });
-        }
-
-        function importDatabase(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    if(confirm("Merge imported data with current logs?")) {
-                        const currentDB = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-                        const mergedDB = { ...currentDB, ...imported.db };
-                        localStorage.setItem('rackTrackerDB', JSON.stringify(mergedDB));
-                        localStorage.setItem('rackTrackerArchive', JSON.stringify(imported.archive || []));
-                        location.reload();
-                    }
-                } catch(err) { alert("Invalid file format."); }
-            };
-            reader.readAsText(file);
-        }
-
-        // --- APP LOGIC ---
-        let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        let rackArchive = JSON.parse(localStorage.getItem('rackTrackerArchive')) || [];
-
         const dInput = document.getElementById('dateFilter');
         dInput.value = new Date().toISOString().split('T')[0];
         dInput.addEventListener('change', loadAndDisplayReport);
+
+        function handleActionMenu(value) {
+            if(!value) return;
+            if(value === 'add') openAddModal();
+            if(value === 'pass') openPassModal();
+            if(value === 'export') exportReport();
+            if(value === 'import') document.getElementById('importFile').click();
+            if(value === 'delete') openDeleteModal();
+            document.getElementById('actionMenu').value = ""; // Reset dropdown
+        }
 
         function toggleModal(id) {
             const m = document.getElementById(id);
@@ -258,8 +245,9 @@
         function loadAndDisplayReport() {
             const date = dInput.value;
             const aTbody = document.getElementById('activeTableBody');
+            const pTbody = document.getElementById('passedTableBody');
             const iTbody = document.getElementById('inactiveTableBody');
-            aTbody.innerHTML = ''; iTbody.innerHTML = '';
+            aTbody.innerHTML = ''; pTbody.innerHTML = ''; iTbody.innerHTML = '';
             
             let current = [...(allRacks[date] || [])];
             current.sort((a, b) => {
@@ -276,13 +264,63 @@
                         <button onclick="openEditNotes('${date}', ${r.id})" class="hover:underline">${r.serial}</button>
                     </td>
                     <td class="px-6 py-4 text-gray-300 text-sm">${r.location || '--'}</td>
-                    <td class="px-6 py-4"><div contenteditable="true" class="bg-gray-950/50 p-2 border border-gray-800 rounded text-sm text-white" onblur="updateAction('${date}', ${r.id}, this.innerText)">${r.actions}</div></td>
+                    <td class="px-6 py-4">
+                        <div contenteditable="true" class="bg-gray-950/50 p-2 border border-gray-800 rounded text-sm text-white focus:bg-gray-800 transition" onblur="updateAction('${date}', ${r.id}, this.innerText)">${r.actions || "Click to add history..."}</div>
+                    </td>
                 </tr>`;
-                r.active ? (aTbody.innerHTML += row) : (iTbody.innerHTML += row);
+                
+                if(r.active) {
+                    aTbody.innerHTML += row;
+                } else if(r.passed) {
+                    pTbody.innerHTML += row;
+                } else {
+                    iTbody.innerHTML += row;
+                }
             });
+
             document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
-            document.getElementById('inactiveCount').innerText = `${current.filter(r=>!r.active).length} Units`;
+            document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
+            document.getElementById('inactiveCount').innerText = `${current.filter(r=>!r.active && !r.passed).length} Units`;
         }
+
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('activeRackSelector').value);
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) { 
+                allRacks[dInput.value][idx].active = false; 
+                allRacks[dInput.value][idx].passed = true; 
+                syncAndRefresh(); 
+                toggleModal('passModal'); 
+            }
+        }
+
+        function performGlobalSearch() {
+            const q = document.getElementById('searchQuery').value.toLowerCase().trim();
+            if(!q) return closeSearch();
+            const resultsSection = document.getElementById('searchResultsSection');
+            const resultsBody = document.getElementById('searchResultsBody');
+            resultsBody.innerHTML = '';
+            resultsSection.classList.remove('hidden');
+            let found = false;
+
+            Object.keys(allRacks).forEach(date => {
+                allRacks[date].forEach(r => {
+                    if(r.serial.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q))) {
+                        resultsBody.innerHTML += `
+                            <tr class="hover:bg-blue-900/10 transition">
+                                <td class="px-6 py-4 text-xs font-mono text-gray-500">${date}</td>
+                                <td class="px-6 py-4 font-bold text-blue-300">${r.serial}</td>
+                                <td class="px-6 py-4 text-sm text-gray-400">${r.location || '--'}</td>
+                                <td class="px-6 py-4"><button onclick="openEditNotes('${date}', ${r.id})" class="text-xs text-blue-500 underline">View</button></td>
+                            </tr>`;
+                        found = true;
+                    }
+                });
+            });
+            if(!found) resultsBody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-500">No matches found.</td></tr>';
+        }
+
+        function closeSearch() { document.getElementById('searchResultsSection').classList.add('hidden'); document.getElementById('searchQuery').value = ''; }
 
         function openEditNotes(date, id) {
             let rack = (allRacks[date] || []).find(r => r.id === id);
@@ -296,85 +334,65 @@
                 allRacks[date][idx].location = document.getElementById('editModalLocation').value;
                 allRacks[date][idx].notes = document.getElementById('editNotesArea').value;
                 allRacks[date][idx].active = document.getElementById('editModalStatus').checked;
+                if(allRacks[date][idx].active) allRacks[date][idx].passed = false;
                 syncAndRefresh();
                 toggleModal('editNotesModal');
             };
             toggleModal('editNotesModal');
         }
 
+        function exportReport() {
+            const data = { db: allRacks, archive: rackArchive };
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `RackTracker_Sync_${dInput.value}.json`;
+            a.click();
+            
+            const element = document.getElementById('activeExportContainer');
+            element.classList.add('export-theme');
+            html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Active_Racks_${dInput.value}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                element.classList.remove('export-theme');
+            });
+        }
+
+        function importDatabase(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    allRacks = { ...allRacks, ...imported.db };
+                    rackArchive = imported.archive || [];
+                    syncAndRefresh();
+                    alert("Import successful.");
+                } catch(err) { alert("Invalid file."); }
+            };
+            reader.readAsText(file);
+        }
+
         function saveRackEntry() {
             const s = document.getElementById('serial').value.trim();
             if(!s) return;
-            const entry = { id: Date.now(), serial: s, location: document.getElementById('location').value, notes: document.getElementById('notes').value, actions: "", active: document.getElementById('active').checked };
+            const entry = { id: Date.now(), serial: s, location: document.getElementById('location').value, notes: document.getElementById('notes').value, actions: "", active: true, passed: false };
             if (!allRacks[dInput.value]) allRacks[dInput.value] = [];
             allRacks[dInput.value].push(entry);
             syncAndRefresh();
             toggleModal('rackModal');
         }
 
-        function syncAndRefresh() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
-
-        function updateAction(date, id, text) {
-            const idx = (allRacks[date] || []).findIndex(r => r.id === id);
-            if (idx !== -1) { allRacks[date][idx].actions = text; syncAndRefresh(); }
-        }
-
-        function openAddModal() {
-            const selector = document.getElementById('prevDaySelector');
-            selector.innerHTML = '<option value="">-- Select an active rack --</option>';
-            const d = new Date(dInput.value); d.setDate(d.getDate() - 1);
-            const prev = d.toISOString().split('T')[0];
-            (allRacks[prev] || []).filter(r => r.active).forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = JSON.stringify({s: r.serial, l: r.location, n: r.notes});
-                opt.innerText = `${r.serial} [${r.location}]`;
-                selector.appendChild(opt);
-            });
-            toggleModal('rackModal');
-        }
-
-        function autoFillFromPrev() {
-            const val = document.getElementById('prevDaySelector').value;
-            if(!val) return;
-            const data = JSON.parse(val);
-            document.getElementById('serial').value = data.s;
-            document.getElementById('location').value = data.l;
-            document.getElementById('notes').value = data.n;
-        }
-
-        function openDeleteModal() {
-            const cur = allRacks[dInput.value] || [];
-            if (cur.length === 0) return alert("No records.");
-            document.getElementById('deleteRackSelector').innerHTML = cur.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('deleteModal');
-        }
-
-        function confirmDeleteRack() {
-            const id = parseInt(document.getElementById('deleteRackSelector').value);
-            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                rackArchive.push({...allRacks[dInput.value][idx], originalLogDate: dInput.value});
-                localStorage.setItem('rackTrackerArchive', JSON.stringify(rackArchive));
-                allRacks[dInput.value].splice(idx, 1);
-                syncAndRefresh();
-                toggleModal('deleteModal');
-            }
-        }
-
-        function openPassModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            if (act.length === 0) return alert("No active racks.");
-            document.getElementById('activeRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('passModal');
-        }
-
-        function confirmPassRack() {
-            const id = parseInt(document.getElementById('activeRackSelector').value);
-            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (idx !== -1) { allRacks[dInput.value][idx].active = false; syncAndRefresh(); toggleModal('passModal'); }
-        }
-
-        function clearDayData() { if(confirm("Clear today's logs?")) { delete allRacks[dInput.value]; syncAndRefresh(); } }
+        function syncAndRefresh() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); localStorage.setItem('rackTrackerArchive', JSON.stringify(rackArchive)); loadAndDisplayReport(); }
+        function updateAction(date, id, text) { const idx = (allRacks[date] || []).findIndex(r => r.id === id); if (idx !== -1) { allRacks[date][idx].actions = text; syncAndRefresh(); } }
+        function openAddModal() { toggleModal('rackModal'); }
+        function openDeleteModal() { const cur = allRacks[dInput.value] || []; document.getElementById('deleteRackSelector').innerHTML = cur.map(r => `<option value="${r.id}">${r.serial}</option>`).join(''); toggleModal('deleteModal'); }
+        function confirmDeleteRack() { const id = parseInt(document.getElementById('deleteRackSelector').value); const idx = allRacks[dInput.value].findIndex(r => r.id === id); if (idx !== -1) { rackArchive.push(allRacks[dInput.value].splice(idx, 1)[0]); syncAndRefresh(); toggleModal('deleteModal'); } }
+        function openPassModal() { const act = (allRacks[dInput.value] || []).filter(r => r.active); document.getElementById('activeRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join(''); toggleModal('passModal'); }
     </script>
 </body>
 </html>
