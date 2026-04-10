@@ -66,7 +66,7 @@
                         <option value="" class="bg-gray-900">-- Select Action --</option>
                         <option value="add" class="bg-gray-900 text-white">Add New Rack</option>
                         <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
-                        <option value="export" class="bg-gray-900 text-white">Export Report (.json & .png)</option>
+                        <option value="export" class="bg-gray-900 text-white">Export Report (Full Package)</option>
                         <option value="import" class="bg-gray-900 text-white">Import File</option>
                         <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
                     </select>
@@ -128,6 +128,11 @@
                         <tbody id="passedTableBody" class="divide-y divide-gray-800"></tbody>
                     </table>
                 </div>
+            </div>
+
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+                <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes</h3>
+                <textarea id="shiftNotes" rows="6" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm focus:ring-2 focus:ring-blue-500" placeholder="Enter general shift notes, handoff details, or reminders here..."></textarea>
             </div>
         </div>
     </div>
@@ -231,7 +236,16 @@
 
         window.onload = function() {
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
+            
+            // Load Shift Notes
+            const savedNotes = localStorage.getItem('rackTracker_ShiftNotes');
+            if(savedNotes) document.getElementById('shiftNotes').value = savedNotes;
         };
+
+        // Auto-save shift notes on change
+        document.getElementById('shiftNotes').addEventListener('input', (e) => {
+            localStorage.setItem('rackTracker_ShiftNotes', e.target.value);
+        });
 
         function handleLogin() {
             const u = document.getElementById('userIn').value;
@@ -417,25 +431,85 @@
                 toggleModal('passModal'); 
             }
         }
+
         function exportReport() {
-            const data = { db: allRacks, archive: rackArchive };
-            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `RackTracker_Data_${dInput.value}.json`;
-            a.click();
-            
+            const date = dInput.value;
+            const activeRacks = (allRacks[date] || []).filter(r => r.active);
+            const notes = document.getElementById('shiftNotes').value;
+
+            // 1. JSON Export
+            const jsonData = { db: allRacks, archive: rackArchive };
+            const jsonBlob = new Blob([JSON.stringify(jsonData)], { type: 'application/json' });
+            const jsonUrl = URL.createObjectURL(jsonBlob);
+            const aJson = document.createElement('a');
+            aJson.href = jsonUrl;
+            aJson.download = `RackTracker_Data_${date}.json`;
+            aJson.click();
+
+            // 2. HTML Table Export
+            let tableRows = activeRacks.map(r => `
+                <tr>
+                    <td>${r.serial}</td>
+                    <td>${r.location || '--'}</td>
+                    <td>${r.issuesFound || ''}</td>
+                    <td>${r.actionTaken || ''}</td>
+                    <td>${r.checkedBy || '--'}</td>
+                </tr>
+            `).join('');
+
+            const htmlContent = `
+                <html>
+                <head>
+                    <title>Rack Report - ${date}</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; color: #333; }
+                        h1 { color: #2563eb; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                        th { background-color: #f8fafc; font-size: 12px; text-transform: uppercase; }
+                        .notes-box { margin-top: 30px; padding: 20px; border: 1px solid #ddd; background: #fdfdfd; white-space: pre-wrap; }
+                        .timestamp { font-size: 10px; color: #888; margin-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Rack Tracker Report: ${date}</h1>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rack ID</th>
+                                <th>Location</th>
+                                <th>Issues Found</th>
+                                <th>Action Taken</th>
+                                <th>Checked By</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tableRows || '<tr><td colspan="5">No active racks found for this date.</td></tr>'}</tbody>
+                    </table>
+                    <h3>Shift Notes</h3>
+                    <div class="notes-box">${notes || 'No notes provided.'}</div>
+                    <div class="timestamp">Generated on: ${new Date().toLocaleString()}</div>
+                </body>
+                </html>`;
+
+            const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+            const htmlUrl = URL.createObjectURL(htmlBlob);
+            const aHtml = document.createElement('a');
+            aHtml.href = htmlUrl;
+            aHtml.download = `Rack_Report_${date}.html`;
+            aHtml.click();
+
+            // 3. PNG Image Export
             const element = document.getElementById('activeExportContainer');
             element.classList.add('export-theme');
             html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `Active_Rack_Report_${dInput.value}.png`;
+                link.download = `Active_Rack_Screenshot_${date}.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
                 element.classList.remove('export-theme');
             });
         }
+
         function importDatabase(event) {
             const file = event.target.files[0];
             if (!file) return;
