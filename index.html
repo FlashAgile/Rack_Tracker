@@ -14,7 +14,9 @@
         .export-theme { background-color: #030712 !important; padding: 40px !important; width: 1400px !important; }
         .sort-header { cursor: pointer; user-select: none; }
         .sort-header:hover { color: #60a5fa; }
-        .editable-cell { min-height: 2.5rem; min-width: 150px; display: block; width: 100%; }
+        .editable-cell { min-height: 2.5rem; display: block; width: 100%; }
+        /* Fixed width for Issues Column in UI */
+        .issues-col { width: 300px; max-width: 300px; white-space: normal; word-break: break-word; }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
@@ -92,15 +94,15 @@
                     <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
                 </div>
                 <div class="bg-gray-900 overflow-x-auto">
-                    <table class="w-full text-left whitespace-nowrap">
+                    <table class="w-full text-left">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3">Date</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
-                                <th class="px-6 py-3">Issues Found</th>
-                                <th class="px-6 py-3">Action Taken</th>
-                                <th class="px-6 py-3">Checked By</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Date</th>
+                                <th class="px-6 py-3 sort-header whitespace-nowrap" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3 sort-header whitespace-nowrap" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 issues-col">Issues Found</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Action Taken</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Checked By</th>
                             </tr>
                         </thead>
                         <tbody id="activeTableBody" class="divide-y divide-gray-800 text-sm"></tbody>
@@ -114,15 +116,15 @@
                     <span id="passedCount" class="text-xs font-mono bg-blue-900/50 px-2 py-1 rounded border border-blue-700 text-blue-300">0 Units</span>
                 </div>
                 <div class="bg-gray-900 overflow-x-auto">
-                    <table class="w-full text-left text-sm whitespace-nowrap">
+                    <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3">Date</th>
-                                <th class="px-6 py-3">Rack ID</th>
-                                <th class="px-6 py-3">Location</th>
-                                <th class="px-6 py-3">Issues Found</th>
-                                <th class="px-6 py-3">Action Taken</th>
-                                <th class="px-6 py-3">Checked By</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Date</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Rack ID</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Location</th>
+                                <th class="px-6 py-3 issues-col">Issues Found</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Action Taken</th>
+                                <th class="px-6 py-3 whitespace-nowrap">Checked By</th>
                             </tr>
                         </thead>
                         <tbody id="passedTableBody" class="divide-y divide-gray-800"></tbody>
@@ -185,14 +187,12 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
             <h3 class="text-2xl font-bold text-blue-400">Log New Rack Entry</h3>
-            
             <div class="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl space-y-2">
                 <label class="text-[10px] font-bold text-blue-400 uppercase">Auto-Fill From History</label>
                 <select id="historySelector" onchange="autoFillFromHistory()" class="w-full bg-gray-800 p-2 rounded border border-gray-700 text-sm text-white">
                     <option value="">-- Select a previous Rack ID --</option>
                 </select>
             </div>
-
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <input type="text" id="serial" placeholder="Rack ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 <input type="text" id="location" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
@@ -201,7 +201,6 @@
             <input type="text" id="checkedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
             <textarea id="issuesFound" placeholder="Issues Found..." rows="2" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
             <textarea id="actionTaken" placeholder="Action Taken..." rows="2" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
-            
             <button onclick="saveRackEntry()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">Log Rack</button>
         </div>
     </div>
@@ -236,13 +235,10 @@
 
         window.onload = function() {
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
-            
-            // Load Shift Notes
             const savedNotes = localStorage.getItem('rackTracker_ShiftNotes');
             if(savedNotes) document.getElementById('shiftNotes').value = savedNotes;
         };
 
-        // Auto-save shift notes on change
         document.getElementById('shiftNotes').addEventListener('input', (e) => {
             localStorage.setItem('rackTracker_ShiftNotes', e.target.value);
         });
@@ -299,18 +295,18 @@
 
             current.forEach(r => {
                 const row = `<tr>
-                    <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
-                    <td class="px-6 py-4 font-mono font-bold text-blue-400">
+                    <td class="px-6 py-4 text-gray-500 font-mono text-[10px] whitespace-nowrap">${date}</td>
+                    <td class="px-6 py-4 font-mono font-bold text-blue-400 whitespace-nowrap">
                         <button onclick="openEditNotes('${date}', ${r.id})" class="hover:underline">${r.serial}</button>
                     </td>
-                    <td class="px-6 py-4 text-gray-300">${r.location || '--'}</td>
-                    <td class="px-6 py-4">
+                    <td class="px-6 py-4 text-gray-300 whitespace-nowrap">${r.location || '--'}</td>
+                    <td class="px-6 py-4 issues-col">
                         <div contenteditable="true" class="editable-cell bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-gray-400 italic" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="px-6 py-4 whitespace-nowrap">
                         <div contenteditable="true" class="editable-cell bg-gray-950/30 p-1 border border-transparent hover:border-gray-800 rounded focus:bg-gray-800 text-emerald-400 font-medium" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div>
                     </td>
-                    <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
+                    <td class="px-6 py-4 text-gray-500 whitespace-nowrap">${r.checkedBy || '--'}</td>
                 </tr>`;
                 if(r.active) aTbody.innerHTML += row;
                 else if(r.passed) pTbody.innerHTML += row;
@@ -331,7 +327,6 @@
             const uniqueRacks = {};
             Object.values(allRacks).forEach(dayArray => dayArray.forEach(r => uniqueRacks[r.serial] = r.location));
             rackArchive.forEach(r => uniqueRacks[r.serial] = r.location);
-
             Object.keys(uniqueRacks).sort().forEach(serial => {
                 const opt = document.createElement('option');
                 opt.value = JSON.stringify({s: serial, l: uniqueRacks[serial]});
@@ -402,7 +397,6 @@
             resultsBody.innerHTML = '';
             resultsSection.classList.remove('hidden');
             let found = false;
-
             Object.keys(allRacks).forEach(date => {
                 allRacks[date].forEach(r => {
                     if(r.serial.toLowerCase().includes(q) || (r.location && r.location.toLowerCase().includes(q)) || (r.status && r.status.toLowerCase().includes(q))) {
@@ -421,6 +415,7 @@
         }
 
         function closeSearch() { document.getElementById('searchResultsSection').classList.add('hidden'); document.getElementById('searchQuery').value = ''; }
+        
         function confirmPassRack() {
             const id = parseInt(document.getElementById('activeRackSelector').value);
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
@@ -434,24 +429,25 @@
 
         function exportReport() {
             const date = dInput.value;
-            const activeRacks = (allRacks[date] || []).filter(r => r.active);
+            const currentRacks = allRacks[date] || [];
+            const activeRacks = currentRacks.filter(r => r.active);
+            const passedRacks = currentRacks.filter(r => r.passed);
             const notes = document.getElementById('shiftNotes').value;
 
             // 1. JSON Export
             const jsonData = { db: allRacks, archive: rackArchive };
             const jsonBlob = new Blob([JSON.stringify(jsonData)], { type: 'application/json' });
-            const jsonUrl = URL.createObjectURL(jsonBlob);
             const aJson = document.createElement('a');
-            aJson.href = jsonUrl;
+            aJson.href = URL.createObjectURL(jsonBlob);
             aJson.download = `RackTracker_Data_${date}.json`;
             aJson.click();
 
-            // 2. HTML Table Export
-            let tableRows = activeRacks.map(r => `
+            // Helper to generate table rows for HTML
+            const makeRows = (list) => list.map(r => `
                 <tr>
                     <td>${r.serial}</td>
                     <td>${r.location || '--'}</td>
-                    <td>${r.issuesFound || ''}</td>
+                    <td class="issues-cell">${r.issuesFound || ''}</td>
                     <td>${r.actionTaken || ''}</td>
                     <td>${r.checkedBy || '--'}</td>
                 </tr>
@@ -462,43 +458,64 @@
                 <head>
                     <title>Rack Report - ${date}</title>
                     <style>
-                        body { font-family: sans-serif; padding: 40px; color: #333; }
-                        h1 { color: #2563eb; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-                        th { background-color: #f8fafc; font-size: 12px; text-transform: uppercase; }
-                        .notes-box { margin-top: 30px; padding: 20px; border: 1px solid #ddd; background: #fdfdfd; white-space: pre-wrap; }
-                        .timestamp { font-size: 10px; color: #888; margin-top: 10px; }
+                        body { font-family: sans-serif; padding: 40px; color: #333; line-height: 1.5; }
+                        h1 { color: #2563eb; margin-bottom: 5px; }
+                        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 30px; font-size: 18px; color: #444; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+                        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; word-wrap: break-word; }
+                        th { background-color: #f8fafc; font-size: 11px; text-transform: uppercase; color: #64748b; }
+                        .issues-cell { width: 300px; max-width: 300px; }
+                        .notes-box { margin-top: 20px; padding: 15px; border: 1px solid #ddd; background: #fafafa; white-space: pre-wrap; font-size: 14px; }
+                        .timestamp { font-size: 10px; color: #94a3b8; margin-top: 20px; }
+                        .active-header { color: #059669; }
+                        .passed-header { color: #2563eb; }
                     </style>
                 </head>
                 <body>
-                    <h1>Rack Tracker Report: ${date}</h1>
+                    <h1>Rack Tracker Report</h1>
+                    <div style="font-weight: bold; color: #64748b;">Date: ${date}</div>
+
+                    <h2 class="active-header">Active Racks (${activeRacks.length})</h2>
                     <table>
                         <thead>
                             <tr>
-                                <th>Rack ID</th>
-                                <th>Location</th>
-                                <th>Issues Found</th>
+                                <th style="width: 150px;">Rack ID</th>
+                                <th style="width: 120px;">Location</th>
+                                <th class="issues-cell">Issues Found</th>
                                 <th>Action Taken</th>
-                                <th>Checked By</th>
+                                <th style="width: 120px;">Checked By</th>
                             </tr>
                         </thead>
-                        <tbody>${tableRows || '<tr><td colspan="5">No active racks found for this date.</td></tr>'}</tbody>
+                        <tbody>${makeRows(activeRacks) || '<tr><td colspan="5" style="text-align:center;">No active racks found.</td></tr>'}</tbody>
                     </table>
-                    <h3>Shift Notes</h3>
-                    <div class="notes-box">${notes || 'No notes provided.'}</div>
-                    <div class="timestamp">Generated on: ${new Date().toLocaleString()}</div>
+
+                    <h2 class="passed-header">Passed Racks (${passedRacks.length})</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 150px;">Rack ID</th>
+                                <th style="width: 120px;">Location</th>
+                                <th class="issues-cell">Issues Found</th>
+                                <th>Action Taken</th>
+                                <th style="width: 120px;">Checked By</th>
+                            </tr>
+                        </thead>
+                        <tbody>${makeRows(passedRacks) || '<tr><td colspan="5" style="text-align:center;">No passed racks found.</td></tr>'}</tbody>
+                    </table>
+
+                    <h2>Shift Notes</h2>
+                    <div class="notes-box">${notes || 'No notes provided for this shift.'}</div>
+                    <div class="timestamp">Report generated on ${new Date().toLocaleString()}</div>
                 </body>
                 </html>`;
 
             const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-            const htmlUrl = URL.createObjectURL(htmlBlob);
             const aHtml = document.createElement('a');
-            aHtml.href = htmlUrl;
+            aHtml.href = URL.createObjectURL(htmlBlob);
             aHtml.download = `Rack_Report_${date}.html`;
             aHtml.click();
 
-            // 3. PNG Image Export
+            // 3. PNG Screenshot
             const element = document.getElementById('activeExportContainer');
             element.classList.add('export-theme');
             html2canvas(element, { backgroundColor: "#030712", scale: 2 }).then(canvas => {
