@@ -1,27 +1,533 @@
-<div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
-    <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
-        <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
-        <h3 class="text-2xl font-bold text-blue-400">Add Rack</h3>
-        
-        <div class="space-y-4">
-            <div class="flex gap-2 p-1 bg-gray-800 rounded-lg">
-                <button id="btnNew" onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold">New Entry</button>
-                <button id="btnFromYesterday" onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold">From Yesterday</button>
-            </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rack Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { transition: background-color 0.3s, color 0.3s; }
+        ::-webkit-calendar-picker-indicator { filter: invert(1); }
+        [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
+        #mainApp { display: none; }
+        .export-theme { background-color: #030712 !important; padding: 40px !important; width: 1400px !important; }
+        .sort-header { cursor: pointer; user-select: none; }
+        .sort-header:hover { color: #60a5fa; }
+        .editable-cell { min-height: 2.5rem; display: block; width: 100%; }
+        .wrap-col { width: 300px; max-width: 300px; white-space: normal; word-break: break-word; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
 
-            <div id="yesterdaySelectGroup" class="hidden space-y-2">
-                <label class="text-xs text-gray-500 uppercase">Select Rack from Yesterday</label>
-                <select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+    <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex items-center justify-center z-[100]">
+        <div class="bg-gray-900 p-10 rounded-2xl border border-gray-800 shadow-2xl w-full max-w-md space-y-6">
+            <div class="text-center">
+                <h1 class="text-3xl font-extrabold text-blue-400">Rack<span class="text-white"> Tracker</span></h1>
+                <p class="text-gray-500 text-sm mt-2">Authorized Access Only</p>
             </div>
-
-            <div id="newEntryFields" class="space-y-4">
-                <input type="text" id="newRackSerial" placeholder="Rack Serial/ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+            <div class="space-y-4">
+                <input type="text" id="userIn" placeholder="Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="password" id="passIn" placeholder="Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Login</button>
             </div>
-
-            <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-            
-            <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white shadow-lg shadow-blue-900/20">Confirm Add</button>
         </div>
     </div>
-</div>
+
+    <div id="mainApp">
+        <nav class="flex flex-col pb-8 border-b border-gray-800 mb-8">
+            <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight leading-none">Rack<span class="text-white"> Tracker</span></h1>
+            <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-xs font-medium w-fit mt-1">Logout Account</button>
+        </nav>
+
+        <div class="max-w-[1600px] mx-auto space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Date</label>
+                    <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Search Records</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="searchQuery" placeholder="Search..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <button onclick="performGlobalSearch()" class="bg-blue-600 p-3 rounded-lg text-white">Search</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Action Menu</label>
+                    <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold">
+                        <option value="" class="bg-gray-900">-- Select Action --</option>
+                        <option value="add" class="bg-gray-900 text-white">Add Rack</option>
+                        <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
+                        <option value="checkout" class="bg-gray-900 text-orange-400">Check Out for Repair</option>
+                        <option value="export" class="bg-gray-900 text-white">Export Report</option>
+                        <option value="import" class="bg-gray-900 text-white">Import File</option>
+                        <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
+                    </select>
+                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
+                </div>
+            </div>
+
+            <div id="activeExportContainer" class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
+                <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
+                    <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-6 py-3">Date</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3 wrap-col">Issues Found</th>
+                                <th class="px-6 py-3">Action Taken</th>
+                                <th class="px-6 py-3">Checked By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeTableBody" class="divide-y divide-gray-800 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-orange-900/30">
+                <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-orange-400">Racks Checked Out for Repair</h3>
+                    <span id="checkedOutCount" class="text-xs font-mono bg-orange-900/50 px-2 py-1 rounded border border-orange-700 text-orange-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-6 py-3">Rack</th>
+                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3 wrap-col">Reason</th>
+                                <th class="px-6 py-3">Checked Out By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkedOutTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-blue-900/30">
+                <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
+                    <span id="passedCount" class="text-xs font-mono bg-blue-900/50 px-2 py-1 rounded border border-blue-700 text-blue-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-6 py-3">Date</th>
+                                <th class="px-6 py-3">Rack ID</th>
+                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3 wrap-col">Issues Found</th>
+                                <th class="px-6 py-3">Action Taken</th>
+                                <th class="px-6 py-3">Checked By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="passedTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+                <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes</h3>
+                <textarea id="shiftNotes" rows="6" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm" placeholder="General notes..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Add Rack</h3>
+            <div class="space-y-4">
+                <div class="flex gap-2 p-1 bg-gray-800 rounded-lg">
+                    <button id="btnNew" onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition">New Entry</button>
+                    <button id="btnFromYesterday" onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition">From Yesterday</button>
+                </div>
+                <div id="yesterdaySelectGroup" class="hidden space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Select Rack from Yesterday</label>
+                    <select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                </div>
+                <div id="newEntryFields" class="space-y-4">
+                    <input type="text" id="newRackSerial" placeholder="Rack Serial/ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                    <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                </div>
+                <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white shadow-lg">Confirm Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="checkoutModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-orange-400">Check Out for Repair</h3>
+            <div class="space-y-4">
+                <select id="checkoutRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <textarea id="checkoutReason" placeholder="Reason for Repair..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white">Confirm Checkout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('deleteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-red-400">Delete Rack</h3>
+            <div class="space-y-4">
+                <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <p class="text-gray-400 text-sm">This action cannot be undone.</p>
+                <button onclick="confirmDeleteRack()" class="w-full bg-red-600 py-3 rounded-xl font-bold text-white">Delete Rack</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
+            <div class="space-y-4">
+                <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('editNotesModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Edit Rack Notes</h3>
+            <div class="space-y-4">
+                <input type="text" id="editRackSerial" readonly class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <textarea id="editIssuesFound" placeholder="Issues Found..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <textarea id="editActionTaken" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmEditNotes()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const auth = { user: 'Admin', pass: '0122' };
+        let currentSort = { key: 'id', dir: 'asc' };
+        let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
+        let addMode = 'new';
+
+        window.onload = function() {
+            if(localStorage.getItem('rememberMe') === 'true') enterApp();
+            const savedNotes = localStorage.getItem('rackTracker_ShiftNotes');
+            if(savedNotes) document.getElementById('shiftNotes').value = savedNotes;
+            document.getElementById('shiftNotes').addEventListener('input', function() {
+                localStorage.setItem('rackTracker_ShiftNotes', this.value);
+            });
+        };
+
+        function handleLogin() {
+            if(document.getElementById('userIn').value === auth.user && document.getElementById('passIn').value === auth.pass) { 
+                localStorage.setItem('rememberMe', 'true');
+                enterApp();
+            } else alert("Invalid Credentials.");
+        }
+
+        function enterApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            loadAndDisplayReport();
+        }
+
+        function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
+
+        const dInput = document.getElementById('dateFilter');
+        dInput.value = new Date().toISOString().split('T')[0];
+        dInput.addEventListener('change', loadAndDisplayReport);
+
+        function toggleModal(id) {
+            const m = document.getElementById(id);
+            m.classList.toggle('opacity-0');
+            m.classList.toggle('pointer-events-none');
+        }
+
+        function handleActionMenu(value) {
+            if(!value) return;
+            if(value === 'add') openAddModal();
+            if(value === 'pass') openPassModal();
+            if(value === 'checkout') openCheckoutModal();
+            if(value === 'export') exportReport();
+            if(value === 'import') document.getElementById('importFile').click();
+            if(value === 'delete') openDeleteModal();
+            document.getElementById('actionMenu').value = "";
+        }
+
+        // Add Modal specific logic
+        function toggleAddMode(mode) {
+            addMode = mode;
+            const btnNew = document.getElementById('btnNew');
+            const btnYest = document.getElementById('btnFromYesterday');
+            const yestGroup = document.getElementById('yesterdaySelectGroup');
+            const newGroup = document.getElementById('newEntryFields');
+
+            if (mode === 'yesterday') {
+                btnYest.className = "flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition";
+                btnNew.className = "flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition";
+                yestGroup.classList.remove('hidden');
+                newGroup.classList.add('hidden');
+                populateYesterdayRacks();
+            } else {
+                btnNew.className = "flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition";
+                btnYest.className = "flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition";
+                newGroup.classList.remove('hidden');
+                yestGroup.classList.add('hidden');
+            }
+        }
+
+        function populateYesterdayRacks() {
+            const today = new Date(dInput.value);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yKey = yesterday.toISOString().split('T')[0];
+            const yRacks = allRacks[yKey] || [];
+            const selector = document.getElementById('yesterdayRackSelector');
+            
+            if (yRacks.length === 0) {
+                selector.innerHTML = '<option value="">No racks from yesterday</option>';
+            } else {
+                selector.innerHTML = yRacks.map(r => 
+                    `<option value="${encodeURIComponent(JSON.stringify(r))}">${r.serial} (${r.location})</option>`
+                ).join('');
+            }
+        }
+
+        function openAddModal() { toggleAddMode('new'); toggleModal('rackModal'); }
+
+        function confirmAddRack() {
+            let serial, location;
+            const checkedBy = document.getElementById('newRackCheckedBy').value.trim();
+            const date = dInput.value;
+
+            if (addMode === 'yesterday') {
+                const selectedData = document.getElementById('yesterdayRackSelector').value;
+                if (!selectedData) return alert("No rack selected.");
+                const rackData = JSON.parse(decodeURIComponent(selectedData));
+                serial = rackData.serial;
+                location = rackData.location;
+            } else {
+                serial = document.getElementById('newRackSerial').value.trim();
+                location = document.getElementById('newRackLocation').value.trim();
+            }
+
+            if (!serial) return alert('Rack Serial is required.');
+            if (!allRacks[date]) allRacks[date] = [];
+            
+            allRacks[date].push({
+                id: Date.now(),
+                serial: serial,
+                location: location,
+                checkedBy: checkedBy,
+                active: true,
+                passed: false,
+                checkedOut: false,
+                issuesFound: '',
+                actionTaken: ''
+            });
+
+            syncAndRefresh();
+            toggleModal('rackModal');
+            document.getElementById('newRackSerial').value = '';
+            document.getElementById('newRackLocation').value = '';
+            document.getElementById('newRackCheckedBy').value = '';
+        }
+
+        // Standard Display and Action logic
+        function loadAndDisplayReport() {
+            const date = dInput.value;
+            const aTbody = document.getElementById('activeTableBody');
+            const pTbody = document.getElementById('passedTableBody');
+            const cTbody = document.getElementById('checkedOutTableBody');
+            aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
+            
+            let current = [...(allRacks[date] || [])];
+            
+            if (currentSort.key) {
+                current.sort((a, b) => {
+                    let aVal = a[currentSort.key] || '';
+                    let bVal = b[currentSort.key] || '';
+                    if (currentSort.key === 'serial') {
+                        aVal = parseInt(aVal.replace(/\D/g, '')) || 0;
+                        bVal = parseInt(bVal.replace(/\D/g, '')) || 0;
+                    }
+                    if (aVal < bVal) return currentSort.dir === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.dir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+            
+            current.forEach(r => {
+                const row = `<tr>
+                    <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
+                    <td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td>
+                    <td class="px-6 py-4">${r.location || '--'}</td>
+                    <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
+                    <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
+                    <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
+                </tr>`;
+
+                if(r.active) aTbody.innerHTML += row;
+                else if(r.passed) pTbody.innerHTML += row;
+                else if(r.checkedOut) {
+                    cTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 font-bold text-orange-400">${r.serial}</td>
+                        <td class="px-6 py-4">${r.location || '--'}</td>
+                        <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td>
+                    </tr>`;
+                }
+            });
+
+            document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
+            document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
+            document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
+        }
+
+        function openCheckoutModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('checkoutModal');
+        }
+
+        function confirmCheckout() {
+            const id = parseInt(document.getElementById('checkoutRackSelector').value);
+            const reason = document.getElementById('checkoutReason').value;
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value][idx].active = false;
+                allRacks[dInput.value][idx].checkedOut = true;
+                allRacks[dInput.value][idx].issuesFound = reason;
+                syncAndRefresh();
+                toggleModal('checkoutModal');
+                document.getElementById('checkoutReason').value = '';
+            }
+        }
+
+        function openPassModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('passRackSelector').value);
+            const action = document.getElementById('passNotes').value;
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value][idx].active = false;
+                allRacks[dInput.value][idx].passed = true;
+                allRacks[dInput.value][idx].actionTaken = action;
+                syncAndRefresh();
+                toggleModal('passModal');
+                document.getElementById('passNotes').value = '';
+            }
+        }
+
+        function openDeleteModal() {
+            const all = allRacks[dInput.value] || [];
+            document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('deleteModal');
+        }
+
+        function confirmDeleteRack() {
+            const id = parseInt(document.getElementById('deleteRackSelector').value);
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value].splice(idx, 1);
+                syncAndRefresh();
+                toggleModal('deleteModal');
+            }
+        }
+
+        function openEditNotes(date, id) {
+            const rack = allRacks[date].find(r => r.id === id);
+            if (rack) {
+                document.getElementById('editRackSerial').value = rack.serial;
+                document.getElementById('editIssuesFound').value = rack.issuesFound || '';
+                document.getElementById('editActionTaken').value = rack.actionTaken || '';
+                document.getElementById('editRackSerial').dataset.id = id;
+                document.getElementById('editRackSerial').dataset.date = date;
+                toggleModal('editNotesModal');
+            }
+        }
+
+        function confirmEditNotes() {
+            const id = parseInt(document.getElementById('editRackSerial').dataset.id);
+            const date = document.getElementById('editRackSerial').dataset.date;
+            allRacks[date].find(r => r.id === id).issuesFound = document.getElementById('editIssuesFound').value;
+            allRacks[date].find(r => r.id === id).actionTaken = document.getElementById('editActionTaken').value;
+            syncAndRefresh();
+            toggleModal('editNotesModal');
+        }
+
+        function performGlobalSearch() {
+            const query = document.getElementById('searchQuery').value.toLowerCase().trim();
+            if (!query) return loadAndDisplayReport();
+            const date = dInput.value;
+            const current = allRacks[date] || [];
+            const filtered = current.filter(r => 
+                r.serial.toLowerCase().includes(query) ||
+                (r.location && r.location.toLowerCase().includes(query)) ||
+                (r.issuesFound && r.issuesFound.toLowerCase().includes(query))
+            );
+            
+            const aTbody = document.getElementById('activeTableBody');
+            aTbody.innerHTML = '';
+            filtered.forEach(r => {
+                aTbody.innerHTML += `<tr><td class="px-6 py-4">${date}</td><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
+            });
+        }
+
+        function updateField(date, id, field, text) {
+            const rack = allRacks[date].find(r => r.id === id);
+            if (rack) { rack[field] = text; syncAndRefresh(); }
+        }
+
+        function syncAndRefresh() { 
+            localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); 
+            loadAndDisplayReport(); 
+        }
+
+        function importDatabase(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        allRacks = JSON.parse(e.target.result).db || {};
+                        syncAndRefresh();
+                        alert('Import successful.');
+                    } catch (err) { alert('Invalid file.'); }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function exportReport() {
+            const date = dInput.value;
+            const jsonBlob = new Blob([JSON.stringify({ db: allRacks })], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(jsonBlob);
+            a.download = `RackTracker_${date}.json`;
+            a.click();
+        }
+
+        function setSort(key) {
+            if (currentSort.key === key) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            else { currentSort.key = key; currentSort.dir = 'asc'; }
+            loadAndDisplayReport();
+        }
+    </script>
+</body>
+</html>
