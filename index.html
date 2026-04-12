@@ -11,7 +11,6 @@
         [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
         #mainApp { display: none; }
         
-        /* Fixed-width logic for text-heavy columns */
         .wrap-col { 
             width: 300px; 
             max-width: 300px; 
@@ -20,10 +19,14 @@
             overflow-wrap: break-word !important;
         }
 
-        /* Force dark background for dropdown options */
-        select option {
+        /* Fixed Dropdown Visibility */
+        select, option {
             background-color: #111827 !important; /* gray-900 */
-            color: white !important;
+            color: #f3f4f6 !important; /* gray-100 */
+        }
+        
+        input, textarea {
+            color-scheme: dark;
         }
     </style>
 </head>
@@ -57,17 +60,17 @@
                 
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Search Records</label>
-                    <input type="text" id="searchQuery" onkeyup="performSearch()" placeholder="Search Serial or Location..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="text" id="searchQuery" oninput="performSearch()" placeholder="Search Serial or Location..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
 
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Action Menu</label>
                     <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer">
-                        <option value="" class="bg-gray-900">-- Select Action --</option>
-                        <option value="add" class="bg-gray-900">Add New Rack</option>
-                        <option value="pass" class="bg-gray-900">Pass Rack</option>
-                        <option value="checkout" class="bg-gray-900">Check Out for Repair</option>
-                        <option value="export" class="bg-gray-900">Export Report</option>
+                        <option value="">-- Select Action --</option>
+                        <option value="add">Add New Rack</option>
+                        <option value="pass">Pass Rack</option>
+                        <option value="checkout">Check Out for Repair</option>
+                        <option value="export">Export Report</option>
                     </select>
                 </div>
             </div>
@@ -198,7 +201,9 @@
         }
 
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
+        
         window.onload = () => { if(localStorage.getItem('rememberMe') === 'true') enterApp(); };
+        
         dInput.onchange = loadAndDisplayReport;
 
         function toggleModal(id) {
@@ -216,6 +221,15 @@
             document.getElementById('actionMenu').value = "";
         }
 
+        function performSearch() {
+            const q = document.getElementById('searchQuery').value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(q) ? '' : 'none';
+            });
+        }
+
         function openAddModal() {
             const selector = document.getElementById('historySelector');
             selector.innerHTML = '<option value="">-- Select from yesterday --</option>';
@@ -230,7 +244,9 @@
                     opt.innerText = `${r.location} - ...${r.serial.slice(-5)}`;
                     selector.appendChild(opt);
                 });
-            } else { selector.innerHTML = '<option disabled>No history found</option>'; }
+            } else { 
+                selector.innerHTML = '<option value="">No history found</option>'; 
+            }
             toggleModal('rackModal');
         }
 
@@ -240,15 +256,6 @@
             const data = JSON.parse(val);
             document.getElementById('serial').value = data.s;
             document.getElementById('location').value = data.l;
-        }
-
-        function performSearch() {
-            const q = document.getElementById('searchQuery').value.toLowerCase();
-            const rows = document.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                row.style.display = text.includes(q) ? '' : 'none';
-            });
         }
 
         function openPassModal() {
@@ -314,6 +321,7 @@
             const aTbody = document.getElementById('activeTableBody');
             const pTbody = document.getElementById('passedTableBody');
             const cTbody = document.getElementById('checkedOutTableBody');
+            
             aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
             
             const current = [...(allRacks[date] || [])];
@@ -328,14 +336,22 @@
                     cTbody.innerHTML += `<tr><td class="${std}">${r.serial}</td><td class="${std}">${r.location}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'issuesFound',this.innerText)">${r.issuesFound}</td><td class="${std}" contenteditable="true" onblur="updateField('${date}',${r.id},'checkedBy',this.innerText)">${r.checkedBy}</td></tr>`;
                 }
             });
+            
             document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
             document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
+            
+            // Re-apply search after loading
+            performSearch();
         }
 
         function updateField(date, id, field, text) {
             const idx = allRacks[date].findIndex(r => r.id === id);
-            if (idx !== -1) { allRacks[date][idx][field] = text; syncAndRefresh(); }
+            if (idx !== -1) { 
+                allRacks[date][idx][field] = text; 
+                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+                // Do not fully refresh here to avoid losing focus while typing
+            }
         }
 
         function syncAndRefresh() { 
@@ -344,10 +360,10 @@
         }
 
         function exportReport() {
-            const blob = new Blob([JSON.stringify(allRacks)], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify(allRacks, null, 2)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `RackTracker_Data.json`;
+            a.download = `RackTracker_Export_${dInput.value}.json`;
             a.click();
         }
     </script>
