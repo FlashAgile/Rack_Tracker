@@ -19,6 +19,12 @@
             word-break: break-word !important; 
             overflow-wrap: break-word !important;
         }
+
+        /* Force dark background for dropdown options */
+        select option {
+            background-color: #111827 !important; /* gray-900 */
+            color: white !important;
+        }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
@@ -29,9 +35,9 @@
                 <h1 class="text-3xl font-extrabold text-blue-400">Rack<span class="text-white"> Tracker</span></h1>
             </div>
             <div class="space-y-4">
-                <input type="text" id="userIn" placeholder="Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <input type="password" id="passIn" placeholder="Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">Login</button>
+                <input type="text" id="userIn" placeholder="Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none">
+                <input type="password" id="passIn" placeholder="Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none">
+                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Login</button>
             </div>
         </div>
     </div>
@@ -46,17 +52,22 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Date</label>
-                    <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                    <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500">
                 </div>
+                
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Search Records</label>
+                    <input type="text" id="searchQuery" onkeyup="performSearch()" placeholder="Search Serial or Location..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Action Menu</label>
-                    <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold">
-                        <option value="">-- Select Action --</option>
-                        <option value="add">Add New Rack</option>
-                        <option value="pass">Pass Rack</option>
-                        <option value="checkout">Check Out for Repair</option>
-                        <option value="export">Export Report</option>
-                        <option value="delete">Delete Rack</option>
+                    <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold focus:ring-2 focus:ring-purple-500 outline-none cursor-pointer">
+                        <option value="" class="bg-gray-900">-- Select Action --</option>
+                        <option value="add" class="bg-gray-900">Add New Rack</option>
+                        <option value="pass" class="bg-gray-900">Pass Rack</option>
+                        <option value="checkout" class="bg-gray-900">Check Out for Repair</option>
+                        <option value="export" class="bg-gray-900">Export Report</option>
                     </select>
                 </div>
             </div>
@@ -131,7 +142,7 @@
         <div class="bg-gray-900 w-full max-w-2xl p-8 rounded-2xl border border-gray-700 space-y-6">
             <h3 class="text-2xl font-bold text-blue-400">Log New Rack Entry</h3>
             <div class="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl space-y-2">
-                <label class="text-[10px] font-bold text-blue-400 uppercase">1-Day Prior History</label>
+                <label class="text-[10px] font-bold text-blue-400 uppercase">Auto-Fill From Yesterday</label>
                 <select id="historySelector" onchange="autoFillFromHistory()" class="w-full bg-gray-800 p-2 rounded border border-gray-700 text-sm text-white focus:outline-none"></select>
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -152,10 +163,8 @@
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 space-y-6">
             <h3 class="text-2xl font-bold text-blue-400">Mark Rack as Passed</h3>
             <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
-            <div class="flex gap-4">
-                <button onclick="confirmPass()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Confirm Pass</button>
-                <button onclick="toggleModal('passModal')" class="flex-1 bg-gray-800 py-3 rounded-xl font-bold">Cancel</button>
-            </div>
+            <button onclick="confirmPass()" class="w-full bg-blue-600 py-3 rounded-xl font-bold">Confirm Pass</button>
+            <button onclick="toggleModal('passModal')" class="w-full bg-gray-800 py-3 rounded-xl font-bold">Cancel</button>
         </div>
     </div>
 
@@ -163,11 +172,9 @@
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 space-y-6">
             <h3 class="text-2xl font-bold text-orange-400">Check Out for Repair</h3>
             <select id="checkoutRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
-            <textarea id="checkoutReason" placeholder="Reason for Repair..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
-            <div class="flex gap-4">
-                <button onclick="confirmCheckout()" class="flex-1 bg-orange-600 py-3 rounded-xl font-bold">Confirm Checkout</button>
-                <button onclick="toggleModal('checkoutModal')" class="flex-1 bg-gray-800 py-3 rounded-xl font-bold">Cancel</button>
-            </div>
+            <textarea id="checkoutReason" placeholder="Reason..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+            <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold">Confirm Checkout</button>
+            <button onclick="toggleModal('checkoutModal')" class="w-full bg-gray-800 py-3 rounded-xl font-bold">Cancel</button>
         </div>
     </div>
 
@@ -191,7 +198,6 @@
         }
 
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
-
         window.onload = () => { if(localStorage.getItem('rememberMe') === 'true') enterApp(); };
         dInput.onchange = loadAndDisplayReport;
 
@@ -210,14 +216,12 @@
             document.getElementById('actionMenu').value = "";
         }
 
-        // Logic for Add Modal (1 Day Prior Only)
         function openAddModal() {
             const selector = document.getElementById('historySelector');
-            selector.innerHTML = '<option value="">-- Select a previous Rack ID --</option>';
-            
-            const selectedDate = new Date(dInput.value + 'T00:00:00');
-            selectedDate.setDate(selectedDate.getDate() - 1);
-            const priorKey = selectedDate.toISOString().split('T')[0];
+            selector.innerHTML = '<option value="">-- Select from yesterday --</option>';
+            const yesterday = new Date(dInput.value + 'T00:00:00');
+            yesterday.setDate(yesterday.getDate() - 1);
+            const priorKey = yesterday.toISOString().split('T')[0];
 
             if (allRacks[priorKey]) {
                 allRacks[priorKey].forEach(r => {
@@ -226,9 +230,7 @@
                     opt.innerText = `${r.location} - ...${r.serial.slice(-5)}`;
                     selector.appendChild(opt);
                 });
-            } else {
-                selector.innerHTML = '<option disabled>No records found for ' + priorKey + '</option>';
-            }
+            } else { selector.innerHTML = '<option disabled>No history found</option>'; }
             toggleModal('rackModal');
         }
 
@@ -240,7 +242,15 @@
             document.getElementById('location').value = data.l;
         }
 
-        // Logic for Pass Modal
+        function performSearch() {
+            const q = document.getElementById('searchQuery').value.toLowerCase();
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(q) ? '' : 'none';
+            });
+        }
+
         function openPassModal() {
             const list = (allRacks[dInput.value] || []).filter(r => r.active);
             list.sort((a, b) => (a.location || "").localeCompare(b.location || ""));
@@ -250,7 +260,6 @@
             toggleModal('passModal');
         }
 
-        // Logic for Checkout Modal
         function openCheckoutModal() {
             const list = (allRacks[dInput.value] || []).filter(r => r.active);
             list.sort((a, b) => (a.location || "").localeCompare(b.location || ""));
@@ -297,7 +306,6 @@
                 allRacks[dInput.value][idx].issuesFound = document.getElementById('checkoutReason').value;
                 syncAndRefresh();
                 toggleModal('checkoutModal');
-                document.getElementById('checkoutReason').value = '';
             }
         }
 
@@ -311,17 +319,15 @@
             const current = [...(allRacks[date] || [])];
             current.forEach(r => {
                 const wrap = "px-6 py-4 wrap-col";
-                const standard = "px-6 py-4 whitespace-nowrap";
-
+                const std = "px-6 py-4 whitespace-nowrap";
                 if(r.active) {
-                    aTbody.innerHTML += `<tr><td class="${standard}">${r.serial}</td><td class="${standard}">${r.location}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'issuesFound',this.innerText)">${r.issuesFound}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'actionTaken',this.innerText)">${r.actionTaken}</td><td class="${standard}">${r.checkedBy}</td></tr>`;
+                    aTbody.innerHTML += `<tr><td class="${std}">${r.serial}</td><td class="${std}">${r.location}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'issuesFound',this.innerText)">${r.issuesFound}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'actionTaken',this.innerText)">${r.actionTaken}</td><td class="${std}">${r.checkedBy}</td></tr>`;
                 } else if(r.passed) {
-                    pTbody.innerHTML += `<tr><td class="${standard}">${r.serial}</td><td class="${standard}">${r.location}</td><td class="${wrap}">${r.issuesFound}</td><td class="${wrap}">${r.actionTaken}</td><td class="${standard}">${r.checkedBy}</td></tr>`;
+                    pTbody.innerHTML += `<tr><td class="${std}">${r.serial}</td><td class="${std}">${r.location}</td><td class="${wrap}">${r.issuesFound}</td><td class="${wrap}">${r.actionTaken}</td><td class="${std}">${r.checkedBy}</td></tr>`;
                 } else if(r.checkedOut) {
-                    cTbody.innerHTML += `<tr><td class="${standard}">${r.serial}</td><td class="${standard}">${r.location}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'issuesFound',this.innerText)">${r.issuesFound}</td><td class="${standard}" contenteditable="true" onblur="updateField('${date}',${r.id},'checkedBy',this.innerText)">${r.checkedBy}</td></tr>`;
+                    cTbody.innerHTML += `<tr><td class="${std}">${r.serial}</td><td class="${std}">${r.location}</td><td class="${wrap}" contenteditable="true" onblur="updateField('${date}',${r.id},'issuesFound',this.innerText)">${r.issuesFound}</td><td class="${std}" contenteditable="true" onblur="updateField('${date}',${r.id},'checkedBy',this.innerText)">${r.checkedBy}</td></tr>`;
                 }
             });
-
             document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
             document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
@@ -338,11 +344,10 @@
         }
 
         function exportReport() {
-            const date = dInput.value;
             const blob = new Blob([JSON.stringify(allRacks)], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `RackTracker_Data_${date}.json`;
+            a.download = `RackTracker_Data.json`;
             a.click();
         }
     </script>
