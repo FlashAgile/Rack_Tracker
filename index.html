@@ -154,10 +154,52 @@
         </div>
     </div>
 
-    <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">...</div>
-    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">...</div>
-    <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">...</div>
-    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] opacity-0 pointer-events-none">...</div>
+    <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Add New Rack</h3>
+            <div class="space-y-4">
+                <input type="text" id="newRackSerial" placeholder="Rack Serial/ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Add Rack</button>
+            </div>
+        </div>
+    </div>
+    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('deleteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-red-400">Delete Rack</h3>
+            <div class="space-y-4">
+                <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <p class="text-gray-400 text-sm">This action cannot be undone.</p>
+                <button onclick="confirmDeleteRack()" class="w-full bg-red-600 py-3 rounded-xl font-bold text-white">Delete Rack</button>
+            </div>
+        </div>
+    </div>
+    <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
+            <div class="space-y-4">
+                <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
+            </div>
+        </div>
+    </div>
+    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] opacity-0 pointer-events-none">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('editNotesModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Edit Rack Notes</h3>
+            <div class="space-y-4">
+                <input type="text" id="editRackSerial" readonly class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <textarea id="editIssuesFound" placeholder="Issues Found..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <textarea id="editActionTaken" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmEditNotes()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Save Changes</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const auth = { user: 'Admin', pass: '0122' };
@@ -170,6 +212,9 @@
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
             const savedNotes = localStorage.getItem('rackTracker_ShiftNotes');
             if(savedNotes) document.getElementById('shiftNotes').value = savedNotes;
+            document.getElementById('shiftNotes').addEventListener('input', function() {
+                localStorage.setItem('rackTracker_ShiftNotes', this.value);
+            });
         };
 
         function handleLogin() {
@@ -216,6 +261,21 @@
             aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
             
             let current = [...(allRacks[date] || [])];
+            
+            // Apply sorting
+            if (currentSort.key) {
+                current.sort((a, b) => {
+                    let aVal = a[currentSort.key] || '';
+                    let bVal = b[currentSort.key] || '';
+                    if (currentSort.key === 'serial') {
+                        aVal = parseInt(aVal.replace(/\D/g, '')) || 0;
+                        bVal = parseInt(bVal.replace(/\D/g, '')) || 0;
+                    }
+                    if (aVal < bVal) return currentSort.dir === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.dir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
             
             current.forEach(r => {
                 if(r.active) {
@@ -270,6 +330,178 @@
                 toggleModal('checkoutModal');
                 document.getElementById('checkoutReason').value = '';
             }
+        }
+
+        function openAddModal() {
+            toggleModal('rackModal');
+        }
+
+        function confirmAddRack() {
+            const serial = document.getElementById('newRackSerial').value.trim();
+            const location = document.getElementById('newRackLocation').value.trim();
+            const checkedBy = document.getElementById('newRackCheckedBy').value.trim();
+            if (!serial) return alert('Rack Serial is required.');
+            const date = dInput.value;
+            if (!allRacks[date]) allRacks[date] = [];
+            const newId = Date.now();
+            allRacks[date].push({
+                id: newId,
+                serial: serial,
+                location: location,
+                checkedBy: checkedBy,
+                active: true,
+                passed: false,
+                checkedOut: false,
+                issuesFound: '',
+                actionTaken: ''
+            });
+            syncAndRefresh();
+            toggleModal('rackModal');
+            document.getElementById('newRackSerial').value = '';
+            document.getElementById('newRackLocation').value = '';
+            document.getElementById('newRackCheckedBy').value = '';
+        }
+
+        function openPassModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('passRackSelector').value);
+            const action = document.getElementById('passNotes').value;
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value][idx].active = false;
+                allRacks[dInput.value][idx].passed = true;
+                allRacks[dInput.value][idx].checkedOut = false;
+                allRacks[dInput.value][idx].actionTaken = action;
+                syncAndRefresh();
+                toggleModal('passModal');
+                document.getElementById('passNotes').value = '';
+            }
+        }
+
+        function openDeleteModal() {
+            const all = allRacks[dInput.value] || [];
+            document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${r.serial} (${r.active ? 'Active' : r.passed ? 'Passed' : 'Checked Out'})</option>`).join('');
+            toggleModal('deleteModal');
+        }
+
+        function confirmDeleteRack() {
+            const id = parseInt(document.getElementById('deleteRackSelector').value);
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[dInput.value].splice(idx, 1);
+                syncAndRefresh();
+                toggleModal('deleteModal');
+            }
+        }
+
+        function openEditNotes(date, id) {
+            const rack = allRacks[date].find(r => r.id === id);
+            if (rack) {
+                document.getElementById('editRackSerial').value = rack.serial;
+                document.getElementById('editIssuesFound').value = rack.issuesFound || '';
+                document.getElementById('editActionTaken').value = rack.actionTaken || '';
+                document.getElementById('editRackSerial').dataset.id = id;
+                document.getElementById('editRackSerial').dataset.date = date;
+                toggleModal('editNotesModal');
+            }
+        }
+
+        function confirmEditNotes() {
+            const id = parseInt(document.getElementById('editRackSerial').dataset.id);
+            const date = document.getElementById('editRackSerial').dataset.date;
+            const issues = document.getElementById('editIssuesFound').value;
+            const action = document.getElementById('editActionTaken').value;
+            const idx = allRacks[date].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                allRacks[date][idx].issuesFound = issues;
+                allRacks[date][idx].actionTaken = action;
+                syncAndRefresh();
+                toggleModal('editNotesModal');
+            }
+        }
+
+        function performGlobalSearch() {
+            const query = document.getElementById('searchQuery').value.toLowerCase().trim();
+            if (!query) return loadAndDisplayReport();
+            const date = dInput.value;
+            const current = allRacks[date] || [];
+            const filtered = current.filter(r => 
+                r.serial.toLowerCase().includes(query) ||
+                (r.location && r.location.toLowerCase().includes(query)) ||
+                (r.issuesFound && r.issuesFound.toLowerCase().includes(query)) ||
+                (r.actionTaken && r.actionTaken.toLowerCase().includes(query)) ||
+                (r.checkedBy && r.checkedBy.toLowerCase().includes(query))
+            );
+            // Temporarily display filtered results
+            const aTbody = document.getElementById('activeTableBody');
+            const pTbody = document.getElementById('passedTableBody');
+            const cTbody = document.getElementById('checkedOutTableBody');
+            aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
+            filtered.forEach(r => {
+                if(r.active) {
+                    aTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
+                        <td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td>
+                        <td class="px-6 py-4">${r.location || '--'}</td>
+                        <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
+                        <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
+                    </tr>`;
+                } else if(r.passed) {
+                    pTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
+                        <td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td>
+                        <td class="px-6 py-4">${r.location || '--'}</td>
+                        <td class="px-6 py-4 wrap-col">${r.issuesFound || ''}</td>
+                        <td class="px-6 py-4">${r.actionTaken || ''}</td>
+                        <td class="px-6 py-4">${r.checkedBy || '--'}</td>
+                    </tr>`;
+                } else if(r.checkedOut) {
+                    cTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 font-bold text-orange-400">${r.serial}</td>
+                        <td class="px-6 py-4">${r.location || '--'}</td>
+                        <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td>
+                    </tr>`;
+                }
+            });
+            document.getElementById('activeCount').innerText = `${filtered.filter(r=>r.active).length} Units`;
+            document.getElementById('passedCount').innerText = `${filtered.filter(r=>r.passed).length} Units`;
+            document.getElementById('checkedOutCount').innerText = `${filtered.filter(r=>r.checkedOut).length} Units`;
+        }
+
+        function importDatabase(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (data.db) allRacks = data.db;
+                        if (data.archive) rackArchive = data.archive;
+                        syncAndRefresh();
+                        alert('Database imported successfully.');
+                    } catch (err) {
+                        alert('Invalid file format.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function setSort(key) {
+            if (currentSort.key === key) {
+                currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.dir = 'asc';
+            }
+            loadAndDisplayReport();
         }
 
         function exportReport() {
@@ -333,7 +565,14 @@
             aHtml.download = `Rack_Report_${date}.html`;
             aHtml.click();
 
-            // Screenshot logic (truncated for brevity but remains same as previous version)
+            // Screenshot
+            html2canvas(document.body).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const aImg = document.createElement('a');
+                aImg.href = imgData;
+                aImg.download = `Rack_Report_${date}.png`;
+                aImg.click();
+            });
         }
 
         function updateField(date, id, field, text) {
