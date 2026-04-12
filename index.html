@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rack Tracker</title>
+    <title>EOS 1st Shift</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
@@ -244,12 +244,12 @@
 
         function handleActionMenu(value) {
             if(!value) return;
-            if(value === 'Add New Rack') openAddModal();
-            if(value === 'Pass Rack') openPassModal();
+            if(value === 'add') openAddModal();
+            if(value === 'pass') openPassModal();
             if(value === 'checkout') openCheckoutModal();
             if(value === 'export') exportReport();
             if(value === 'import') document.getElementById('importFile').click();
-            if(value === 'Delete Rack') openDeleteModal();
+            if(value === 'delete') openDeleteModal();
             document.getElementById('actionMenu').value = "";
         }
 
