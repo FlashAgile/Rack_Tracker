@@ -38,17 +38,10 @@
         </nav>
 
         <div class="max-w-[1600px] mx-auto space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-400">Date</label>
+                    <label class="text-sm font-medium text-gray-400">Select Date</label>
                     <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                </div>
-                
-                <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-400">Search Records</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="searchQuery" oninput="performGlobalSearch()" placeholder="Search serials..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -334,15 +327,13 @@
             
             let current = [...(allRacks[date] || [])];
             
-            // SORTING LOGIC
             current.sort((a, b) => {
                 let aVal = a[currentSort.key] || '';
                 let bVal = b[currentSort.key] || '';
                 
-                // Natural number sorting for serials
                 if (currentSort.key === 'serial') {
-                    const aMatch = aVal.match(/\d+/);
-                    const bMatch = bVal.match(/\d+/);
+                    const aMatch = aVal.toString().match(/\d+/);
+                    const bMatch = bVal.toString().match(/\d+/);
                     if (aMatch && bMatch) {
                         aVal = parseInt(aMatch[0]);
                         bVal = parseInt(bMatch[0]);
@@ -366,7 +357,9 @@
                         </td>
                         <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
-                        <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
+                        <td class="px-6 py-4 text-gray-500">
+                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
+                        </td>
                     </tr>`;
                 }
                 else if(r.passed) {
@@ -384,7 +377,9 @@
                         <td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
                         <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
-                        <td class="px-6 py-4">${r.checkedBy}</td>
+                        <td class="px-6 py-4">
+                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
+                        </td>
                         <td class="px-6 py-4 text-center">
                             <button onclick="returnToActive('${date}', ${r.id})" class="text-orange-400 hover:text-emerald-400 text-xl">↺</button>
                         </td>
@@ -467,19 +462,6 @@
                 syncAndRefresh();
                 toggleModal('deleteModal');
             }
-        }
-
-        function performGlobalSearch() {
-            const query = document.getElementById('searchQuery').value.toLowerCase().trim();
-            if (!query) return loadAndDisplayReport();
-            
-            const date = dInput.value;
-            const rows = document.querySelectorAll('tbody tr');
-            
-            rows.forEach(row => {
-                const text = row.innerText.toLowerCase();
-                row.style.display = text.includes(query) ? '' : 'none';
-            });
         }
 
         function updateField(date, id, field, text) {
