@@ -367,10 +367,11 @@
             }
             
             current.forEach(r => {
+                // ACTIVE AND PASSED TABLE LOCATION EDITING
                 const row = `<tr>
                     <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
                     <td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td>
-                    <td class="px-6 py-4">${r.location || '--'}</td>
+                    <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
                     <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
                     <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
                     <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
@@ -379,9 +380,10 @@
                 if(r.active) aTbody.innerHTML += row;
                 else if(r.passed) pTbody.innerHTML += row;
                 else if(r.checkedOut) {
+                    // CHECKED OUT TABLE LOCATION EDITING
                     cTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 font-bold text-orange-400">${r.serial}</td>
-                        <td class="px-6 py-4">${r.location || '--'}</td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
                         <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td>
                         <td class="px-6 py-4 text-center">
@@ -398,7 +400,6 @@
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
         }
 
-        // NEW FUNCTION TO HANDLE RETURNING RACK
         function returnToActive(date, id) {
             const rack = allRacks[date].find(r => r.id === id);
             if (rack) {
@@ -499,7 +500,7 @@
             const aTbody = document.getElementById('activeTableBody');
             aTbody.innerHTML = '';
             filtered.forEach(r => {
-                aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4 text-gray-500">${r.checkedBy}</td></tr>`;
+                aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location}</div></td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4 text-gray-500">${r.checkedBy}</td></tr>`;
             });
         }
 
