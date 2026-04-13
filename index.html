@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rack Tracker</title>
+    <title>Rack Tracker Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { transition: background-color 0.3s, color 0.3s; }
         ::-webkit-calendar-picker-indicator { filter: invert(1); }
         [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
         #mainApp { display: none; }
-        .export-theme { background-color: #030712 !important; padding: 40px !important; width: 1400px !important; }
-        .sort-header { cursor: pointer; user-select: none; }
+        .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
         .sort-header:hover { color: #60a5fa; }
-        .editable-cell { min-height: 2.5rem; display: block; width: 100%; }
         .wrap-col { width: 300px; max-width: 300px; white-space: normal; word-break: break-word; }
     </style>
 </head>
@@ -50,8 +47,7 @@
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Search Records</label>
                     <div class="flex gap-2">
-                        <input type="text" id="searchQuery" placeholder="Search..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                        <button onclick="performGlobalSearch()" class="bg-blue-600 p-3 rounded-lg text-white">Search</button>
+                        <input type="text" id="searchQuery" oninput="performGlobalSearch()" placeholder="Search serials..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                     </div>
                 </div>
 
@@ -70,7 +66,7 @@
                 </div>
             </div>
 
-            <div id="activeExportContainer" class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
                 <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
                     <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
@@ -79,12 +75,12 @@
                     <table class="w-full text-left">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3">Date</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
-                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
-                                <th class="px-6 py-3">Checked By</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('checkedBy')">Checked By ↕</th>
                             </tr>
                         </thead>
                         <tbody id="activeTableBody" class="divide-y divide-gray-800 text-sm"></tbody>
@@ -101,8 +97,8 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3">Rack</th>
-                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ↕</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Reason</th>
                                 <th class="px-6 py-3">Checked Out By</th>
                                 <th class="px-6 py-3 text-center">Return</th>
@@ -122,9 +118,9 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3">Date</th>
-                                <th class="px-6 py-3">Rack ID</th>
-                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
                                 <th class="px-6 py-3">Checked By</th>
@@ -183,7 +179,6 @@
             <h3 class="text-2xl font-bold text-red-400">Delete Rack</h3>
             <div class="space-y-4">
                 <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
-                <p class="text-gray-400 text-sm">This action cannot be undone.</p>
                 <button onclick="confirmDeleteRack()" class="w-full bg-red-600 py-3 rounded-xl font-bold text-white">Delete Rack</button>
             </div>
         </div>
@@ -201,22 +196,9 @@
         </div>
     </div>
 
-    <div id="editNotesModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60] opacity-0 pointer-events-none transition-opacity">
-        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
-            <button onclick="toggleModal('editNotesModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
-            <h3 class="text-2xl font-bold text-blue-400">Edit Rack Notes</h3>
-            <div class="space-y-4">
-                <input type="text" id="editRackSerial" readonly class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <textarea id="editIssuesFound" placeholder="Issues Found..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
-                <textarea id="editActionTaken" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
-                <button onclick="confirmEditNotes()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Save Changes</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         const auth = { user: 'Admin', pass: '0122' };
-        let currentSort = { key: 'id', dir: 'asc' };
+        let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
         let addMode = 'new';
 
@@ -352,44 +334,59 @@
             
             let current = [...(allRacks[date] || [])];
             
-            if (currentSort.key) {
-                current.sort((a, b) => {
-                    let aVal = a[currentSort.key] || '';
-                    let bVal = b[currentSort.key] || '';
-                    if (currentSort.key === 'serial') {
-                        aVal = parseInt(aVal.replace(/\D/g, '')) || 0;
-                        bVal = parseInt(bVal.replace(/\D/g, '')) || 0;
+            // SORTING LOGIC
+            current.sort((a, b) => {
+                let aVal = a[currentSort.key] || '';
+                let bVal = b[currentSort.key] || '';
+                
+                // Natural number sorting for serials
+                if (currentSort.key === 'serial') {
+                    const aMatch = aVal.match(/\d+/);
+                    const bMatch = bVal.match(/\d+/);
+                    if (aMatch && bMatch) {
+                        aVal = parseInt(aMatch[0]);
+                        bVal = parseInt(bMatch[0]);
                     }
-                    if (aVal < bVal) return currentSort.dir === 'asc' ? -1 : 1;
-                    if (aVal > bVal) return currentSort.dir === 'asc' ? 1 : -1;
-                    return 0;
-                });
-            }
+                }
+
+                if (aVal < bVal) return currentSort.dir === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.dir === 'asc' ? 1 : -1;
+                return 0;
+            });
             
             current.forEach(r => {
-                // ACTIVE AND PASSED TABLE LOCATION EDITING
-                const row = `<tr>
-                    <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
-                    <td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td>
-                    <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
-                    <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
-                    <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
-                    <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
-                </tr>`;
-
-                if(r.active) aTbody.innerHTML += row;
-                else if(r.passed) pTbody.innerHTML += row;
-                else if(r.checkedOut) {
-                    // CHECKED OUT TABLE LOCATION EDITING
-                    cTbody.innerHTML += `<tr>
-                        <td class="px-6 py-4 font-bold text-orange-400">${r.serial}</td>
-                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
+                if(r.active) {
+                    aTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
+                        <td class="px-6 py-4 font-bold text-blue-400">
+                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText)">${r.serial}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div>
+                        </td>
                         <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
-                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
+                        <td class="px-6 py-4 text-gray-500">${r.checkedBy || '--'}</td>
+                    </tr>`;
+                }
+                else if(r.passed) {
+                    pTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
+                        <td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
+                        <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
+                        <td class="px-6 py-4">${r.actionTaken}</td>
+                        <td class="px-6 py-4 text-gray-500">${r.checkedBy}</td>
+                    </tr>`;
+                }
+                else if(r.checkedOut) {
+                    cTbody.innerHTML += `<tr>
+                        <td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
+                        <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
+                        <td class="px-6 py-4">${r.checkedBy}</td>
                         <td class="px-6 py-4 text-center">
-                            <button onclick="returnToActive('${date}', ${r.id})" class="text-orange-400 hover:text-emerald-400 transition text-xl">
-                                ↺
-                            </button>
+                            <button onclick="returnToActive('${date}', ${r.id})" class="text-orange-400 hover:text-emerald-400 text-xl">↺</button>
                         </td>
                     </tr>`;
                 }
@@ -400,11 +397,18 @@
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
         }
 
+        function returnToActivePrompt(date, id, serial) {
+            if(confirm(`Move Rack ${serial} back to Active table?`)) {
+                returnToActive(date, id);
+            }
+        }
+
         function returnToActive(date, id) {
             const rack = allRacks[date].find(r => r.id === id);
             if (rack) {
                 rack.active = true;
                 rack.checkedOut = false;
+                rack.passed = false;
                 syncAndRefresh();
             }
         }
@@ -465,48 +469,25 @@
             }
         }
 
-        function openEditNotes(date, id) {
-            const rack = allRacks[date].find(r => r.id === id);
-            if (rack) {
-                document.getElementById('editRackSerial').value = rack.serial;
-                document.getElementById('editIssuesFound').value = rack.issuesFound || '';
-                document.getElementById('editActionTaken').value = rack.actionTaken || '';
-                document.getElementById('editRackSerial').dataset.id = id;
-                document.getElementById('editRackSerial').dataset.date = date;
-                toggleModal('editNotesModal');
-            }
-        }
-
-        function confirmEditNotes() {
-            const id = parseInt(document.getElementById('editRackSerial').dataset.id);
-            const date = document.getElementById('editRackSerial').dataset.date;
-            allRacks[date].find(r => r.id === id).issuesFound = document.getElementById('editIssuesFound').value;
-            allRacks[date].find(r => r.id === id).actionTaken = document.getElementById('editActionTaken').value;
-            syncAndRefresh();
-            toggleModal('editNotesModal');
-        }
-
         function performGlobalSearch() {
             const query = document.getElementById('searchQuery').value.toLowerCase().trim();
             if (!query) return loadAndDisplayReport();
-            const date = dInput.value;
-            const current = allRacks[date] || [];
-            const filtered = current.filter(r => 
-                r.serial.toLowerCase().includes(query) ||
-                (r.location && r.location.toLowerCase().includes(query)) ||
-                (r.issuesFound && r.issuesFound.toLowerCase().includes(query))
-            );
             
-            const aTbody = document.getElementById('activeTableBody');
-            aTbody.innerHTML = '';
-            filtered.forEach(r => {
-                aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location}</div></td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4 text-gray-500">${r.checkedBy}</td></tr>`;
+            const date = dInput.value;
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
             });
         }
 
         function updateField(date, id, field, text) {
             const rack = allRacks[date].find(r => r.id === id);
-            if (rack) { rack[field] = text; syncAndRefresh(); }
+            if (rack) { 
+                rack[field] = text.trim(); 
+                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+            }
         }
 
         function syncAndRefresh() { 
