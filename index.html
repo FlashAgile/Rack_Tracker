@@ -105,6 +105,7 @@
                                 <th class="px-6 py-3">Location</th>
                                 <th class="px-6 py-3 wrap-col">Reason</th>
                                 <th class="px-6 py-3">Checked Out By</th>
+                                <th class="px-6 py-3 text-center">Return</th>
                             </tr>
                         </thead>
                         <tbody id="checkedOutTableBody" class="divide-y divide-gray-800"></tbody>
@@ -264,7 +265,6 @@
             document.getElementById('actionMenu').value = "";
         }
 
-        // Add Modal specific logic
         function toggleAddMode(mode) {
             addMode = mode;
             const btnNew = document.getElementById('btnNew');
@@ -343,7 +343,6 @@
             document.getElementById('newRackCheckedBy').value = '';
         }
 
-        // Standard Display and Action logic
         function loadAndDisplayReport() {
             const date = dInput.value;
             const aTbody = document.getElementById('activeTableBody');
@@ -385,6 +384,11 @@
                         <td class="px-6 py-4">${r.location || '--'}</td>
                         <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td>
+                        <td class="px-6 py-4 text-center">
+                            <button onclick="returnToActive('${date}', ${r.id})" class="text-orange-400 hover:text-emerald-400 transition text-xl">
+                                ↺
+                            </button>
+                        </td>
                     </tr>`;
                 }
             });
@@ -392,6 +396,16 @@
             document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
             document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
+        }
+
+        // NEW FUNCTION TO HANDLE RETURNING RACK
+        function returnToActive(date, id) {
+            const rack = allRacks[date].find(r => r.id === id);
+            if (rack) {
+                rack.active = true;
+                rack.checkedOut = false;
+                syncAndRefresh();
+            }
         }
 
         function openCheckoutModal() {
@@ -485,7 +499,7 @@
             const aTbody = document.getElementById('activeTableBody');
             aTbody.innerHTML = '';
             filtered.forEach(r => {
-                aTbody.innerHTML += `<tr><td class="px-6 py-4">${date}</td><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
+                aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400 underline"><button onclick="openEditNotes('${date}', ${r.id})">${r.serial}</button></td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4 text-gray-500">${r.checkedBy}</td></tr>`;
             });
         }
 
