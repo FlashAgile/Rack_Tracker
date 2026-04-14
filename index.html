@@ -12,7 +12,7 @@
         #mainApp { display: none; }
         .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
         .sort-header:hover { color: #60a5fa; }
-        .wrap-col { width: 300px; max-width: 300px; white-space: normal; word-break: break-word; }
+        .wrap-col { width: 250px; max-width: 250px; white-space: normal; word-break: break-word; }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
@@ -70,6 +70,7 @@
                             <tr>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3">Test</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
@@ -91,6 +92,7 @@
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ↕</th>
+                                <th class="px-6 py-3">Test</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Reason</th>
                                 <th class="px-6 py-3">Checked Out By</th>
@@ -112,6 +114,7 @@
                             <tr>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3">Test</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
@@ -124,8 +127,8 @@
             </div>
 
             <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
-                <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes</h3>
-                <textarea id="shiftNotes" rows="6" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm" placeholder="General notes..."></textarea>
+                <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes (Auto-Generated)</h3>
+                <textarea id="shiftNotes" rows="8" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Notes will appear here..."></textarea>
             </div>
         </div>
     </div>
@@ -147,6 +150,17 @@
                     <input type="text" id="newRackSerial" placeholder="Rack Serial/ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                     <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 </div>
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Initial Test Station</label>
+                    <select id="newRackTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="IPU">IPU</option>
+                        <option value="PR">PR</option>
+                        <option value="RUNIN">RUNIN</option>
+                        <option value="RL12">RL12</option>
+                        <option value="RML">RML</option>
+                        <option value="RLT">RLT</option>
+                    </select>
+                </div>
                 <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white shadow-lg">Confirm Add</button>
             </div>
@@ -159,6 +173,17 @@
             <h3 class="text-2xl font-bold text-orange-400">Check Out for Repair</h3>
             <div class="space-y-4">
                 <select id="checkoutRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Update Test Station</label>
+                    <select id="checkoutTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="IPU">IPU</option>
+                        <option value="PR">PR</option>
+                        <option value="RUNIN">RUNIN</option>
+                        <option value="RL12">RL12</option>
+                        <option value="RML">RML</option>
+                        <option value="RLT">RLT</option>
+                    </select>
+                </div>
                 <textarea id="checkoutReason" placeholder="Reason for Repair..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
                 <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white">Confirm Checkout</button>
             </div>
@@ -182,6 +207,17 @@
             <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
             <div class="space-y-4">
                 <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Target Station</label>
+                    <select id="passTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="RL12">RL12</option>
+                        <option value="RML">RML</option>
+                        <option value="RLT">RLT</option>
+                        <option value="IPU">IPU</option>
+                        <option value="PR">PR</option>
+                        <option value="RUNIN">RUNIN</option>
+                    </select>
+                </div>
                 <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
                 <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
             </div>
@@ -193,14 +229,10 @@
         let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
         let addMode = 'new';
+        const stations = ["IPU", "PR", "RUNIN", "RL12", "RML", "RLT"];
 
         window.onload = function() {
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
-            const savedNotes = localStorage.getItem('rackTracker_ShiftNotes');
-            if(savedNotes) document.getElementById('shiftNotes').value = savedNotes;
-            document.getElementById('shiftNotes').addEventListener('input', function() {
-                localStorage.setItem('rackTracker_ShiftNotes', this.value);
-            });
         };
 
         function handleLogin() {
@@ -282,6 +314,7 @@
         function confirmAddRack() {
             let serial, location;
             const checkedBy = document.getElementById('newRackCheckedBy').value.trim();
+            const test = document.getElementById('newRackTest').value;
             const date = dInput.value;
 
             if (addMode === 'yesterday') {
@@ -302,6 +335,7 @@
                 id: Date.now(),
                 serial: serial,
                 location: location,
+                test: test,
                 checkedBy: checkedBy,
                 active: true,
                 passed: false,
@@ -314,7 +348,32 @@
             toggleModal('rackModal');
             document.getElementById('newRackSerial').value = '';
             document.getElementById('newRackLocation').value = '';
-            document.getElementById('newRackCheckedBy').value = '';
+        }
+
+        function updateShiftNotes() {
+            const date = dInput.value;
+            const current = allRacks[date] || [];
+            
+            const categories = {
+                early: { label: "Early-stage testing", racks: [] },
+                slt: { label: "In SLT", racks: [] },
+                passed: { label: "Passed SLT", racks: [] }
+            };
+
+            current.forEach(r => {
+                const t = r.test || "";
+                if (t === "IPU" || t === "PR") categories.early.racks.push(r.serial);
+                else if (t === "RUNIN") categories.slt.racks.push(r.serial);
+                else if (["RL12", "RML", "RLT"].includes(t)) categories.passed.racks.push(r.serial);
+            });
+
+            let noteText = `SHIFT SUMMARY - ${date}\n\n`;
+            Object.values(categories).forEach(cat => {
+                noteText += `${cat.label} (${cat.racks.length}):\n`;
+                noteText += cat.racks.length > 0 ? `- ${cat.racks.join(', ')}\n\n` : "- None\n\n";
+            });
+
+            document.getElementById('shiftNotes').value = noteText;
         }
 
         function loadAndDisplayReport() {
@@ -329,7 +388,6 @@
             current.sort((a, b) => {
                 let aVal = a[currentSort.key] || '';
                 let bVal = b[currentSort.key] || '';
-                
                 if (currentSort.key === 'serial') {
                     const aMatch = aVal.toString().match(/\d+/);
                     const bMatch = bVal.toString().match(/\d+/);
@@ -338,19 +396,25 @@
                         bVal = parseInt(bMatch[0]);
                     }
                 }
-
                 if (aVal < bVal) return currentSort.dir === 'asc' ? -1 : 1;
                 if (aVal > bVal) return currentSort.dir === 'asc' ? 1 : -1;
                 return 0;
             });
             
             current.forEach(r => {
+                const testSelect = `
+                    <select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">
+                        ${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}
+                    </select>
+                `;
+
                 if(r.active) {
                     aTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
                         <td class="px-6 py-4 font-bold text-blue-400">
                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText)">${r.serial}</div>
                         </td>
+                        <td class="px-6 py-4">${testSelect}</td>
                         <td class="px-6 py-4">
                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div>
                         </td>
@@ -365,6 +429,7 @@
                     pTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
                         <td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
+                        <td class="px-6 py-4 text-blue-300 font-bold">${r.test || '--'}</td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
                         <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
                         <td class="px-6 py-4">${r.actionTaken}</td>
@@ -376,6 +441,7 @@
                 else if(r.checkedOut) {
                     cTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
+                        <td class="px-6 py-4 text-orange-300 font-bold">${r.test || '--'}</td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
                         <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
                         <td class="px-6 py-4">
@@ -388,21 +454,18 @@
             document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
             document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
+            updateShiftNotes();
         }
 
         function returnToActivePrompt(date, id, serial) {
             if(confirm(`Move Rack ${serial} back to Active table?`)) {
-                returnToActive(date, id);
-            }
-        }
-
-        function returnToActive(date, id) {
-            const rack = allRacks[date].find(r => r.id === id);
-            if (rack) {
-                rack.active = true;
-                rack.checkedOut = false;
-                rack.passed = false;
-                syncAndRefresh();
+                const rack = allRacks[date].find(r => r.id === id);
+                if (rack) {
+                    rack.active = true;
+                    rack.checkedOut = false;
+                    rack.passed = false;
+                    syncAndRefresh();
+                }
             }
         }
 
@@ -415,11 +478,13 @@
         function confirmCheckout() {
             const id = parseInt(document.getElementById('checkoutRackSelector').value);
             const reason = document.getElementById('checkoutReason').value;
+            const test = document.getElementById('checkoutTest').value;
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
             if (idx !== -1) {
                 allRacks[dInput.value][idx].active = false;
                 allRacks[dInput.value][idx].checkedOut = true;
                 allRacks[dInput.value][idx].issuesFound = reason;
+                allRacks[dInput.value][idx].test = test;
                 syncAndRefresh();
                 toggleModal('checkoutModal');
                 document.getElementById('checkoutReason').value = '';
@@ -435,11 +500,13 @@
         function confirmPassRack() {
             const id = parseInt(document.getElementById('passRackSelector').value);
             const action = document.getElementById('passNotes').value;
+            const test = document.getElementById('passTest').value;
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
             if (idx !== -1) {
                 allRacks[dInput.value][idx].active = false;
                 allRacks[dInput.value][idx].passed = true;
                 allRacks[dInput.value][idx].actionTaken = action;
+                allRacks[dInput.value][idx].test = test;
                 syncAndRefresh();
                 toggleModal('passModal');
                 document.getElementById('passNotes').value = '';
@@ -467,6 +534,7 @@
             if (rack) { 
                 rack[field] = text.trim(); 
                 localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+                updateShiftNotes();
             }
         }
 
