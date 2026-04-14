@@ -94,7 +94,6 @@
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Reason</th>
                                 <th class="px-6 py-3">Checked Out By</th>
-                                <th class="px-6 py-3 text-center">Return</th>
                             </tr>
                         </thead>
                         <tbody id="checkedOutTableBody" class="divide-y divide-gray-800"></tbody>
@@ -367,9 +366,11 @@
                         <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
                         <td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
                         <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
-                        <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
+                        <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
                         <td class="px-6 py-4">${r.actionTaken}</td>
-                        <td class="px-6 py-4 text-gray-500">${r.checkedBy}</td>
+                        <td class="px-6 py-4 text-gray-500">
+                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
+                        </td>
                     </tr>`;
                 }
                 else if(r.checkedOut) {
@@ -379,9 +380,6 @@
                         <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
                         <td class="px-6 py-4">
                              <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <button onclick="returnToActive('${date}', ${r.id})" class="text-orange-400 hover:text-emerald-400 text-xl">↺</button>
                         </td>
                     </tr>`;
                 }
