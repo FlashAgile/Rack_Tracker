@@ -51,7 +51,7 @@
                         <option value="add" class="bg-gray-900 text-white">Add Rack</option>
                         <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
                         <option value="checkout" class="bg-gray-900 text-orange-400">Check Out for Repair</option>
-                        <option value="export" class="bg-gray-900 text-white">Export Report</option>
+                        <option value="export" class="bg-gray-900 text-white">Export Teams Report</option>
                         <option value="import" class="bg-gray-900 text-white">Import File</option>
                         <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
                     </select>
@@ -228,7 +228,6 @@
         const auth = { user: 'Admin', pass: '0122' };
         let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        let addMode = 'new';
         const stations = ["IPU", "PR", "RUNIN", "RL12", "RML", "RLT"];
 
         window.onload = function() {
@@ -265,19 +264,20 @@
             if(value === 'add') openAddModal();
             if(value === 'pass') openPassModal();
             if(value === 'checkout') openCheckoutModal();
-            if(value === 'export') exportReport();
+            if(value === 'export') exportForTeams();
             if(value === 'import') document.getElementById('importFile').click();
             if(value === 'delete') openDeleteModal();
             document.getElementById('actionMenu').value = "";
         }
 
+        // Logic for Add, Pass, Checkout, Delete same as previous version...
+        function openAddModal() { toggleAddMode('new'); toggleModal('rackModal'); }
         function toggleAddMode(mode) {
             addMode = mode;
             const btnNew = document.getElementById('btnNew');
             const btnYest = document.getElementById('btnFromYesterday');
             const yestGroup = document.getElementById('yesterdaySelectGroup');
             const newGroup = document.getElementById('newEntryFields');
-
             if (mode === 'yesterday') {
                 btnYest.className = "flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition";
                 btnNew.className = "flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition";
@@ -291,7 +291,6 @@
                 yestGroup.classList.add('hidden');
             }
         }
-
         function populateYesterdayRacks() {
             const today = new Date(dInput.value);
             const yesterday = new Date(today);
@@ -299,80 +298,49 @@
             const yKey = yesterday.toISOString().split('T')[0];
             const yRacks = allRacks[yKey] || [];
             const selector = document.getElementById('yesterdayRackSelector');
-            
-            if (yRacks.length === 0) {
-                selector.innerHTML = '<option value="">No racks from yesterday</option>';
-            } else {
-                selector.innerHTML = yRacks.map(r => 
-                    `<option value="${encodeURIComponent(JSON.stringify(r))}">${r.serial} (${r.location})</option>`
-                ).join('');
-            }
+            selector.innerHTML = yRacks.length === 0 ? '<option value="">No racks from yesterday</option>' : 
+                yRacks.map(r => `<option value="${encodeURIComponent(JSON.stringify(r))}">${r.serial} (${r.location})</option>`).join('');
         }
-
-        function openAddModal() { toggleAddMode('new'); toggleModal('rackModal'); }
-
         function confirmAddRack() {
             let serial, location;
             const checkedBy = document.getElementById('newRackCheckedBy').value.trim();
             const test = document.getElementById('newRackTest').value;
             const date = dInput.value;
-
             if (addMode === 'yesterday') {
                 const selectedData = document.getElementById('yesterdayRackSelector').value;
                 if (!selectedData) return alert("No rack selected.");
                 const rackData = JSON.parse(decodeURIComponent(selectedData));
-                serial = rackData.serial;
-                location = rackData.location;
+                serial = rackData.serial; location = rackData.location;
             } else {
                 serial = document.getElementById('newRackSerial').value.trim();
                 location = document.getElementById('newRackLocation').value.trim();
             }
-
             if (!serial) return alert('Rack Serial is required.');
             if (!allRacks[date]) allRacks[date] = [];
-            
-            allRacks[date].push({
-                id: Date.now(),
-                serial: serial,
-                location: location,
-                test: test,
-                checkedBy: checkedBy,
-                active: true,
-                passed: false,
-                checkedOut: false,
-                issuesFound: '',
-                actionTaken: ''
-            });
-
+            allRacks[date].push({ id: Date.now(), serial, location, test, checkedBy, active: true, passed: false, checkedOut: false, issuesFound: '', actionTaken: '' });
             syncAndRefresh();
             toggleModal('rackModal');
-            document.getElementById('newRackSerial').value = '';
-            document.getElementById('newRackLocation').value = '';
+            document.getElementById('newRackSerial').value = ''; document.getElementById('newRackLocation').value = '';
         }
 
         function updateShiftNotes() {
             const date = dInput.value;
             const current = allRacks[date] || [];
-            
             const categories = {
                 early: { label: "Early-stage testing", racks: [] },
                 slt: { label: "In SLT", racks: [] },
                 passed: { label: "Passed SLT", racks: [] }
             };
-
             current.forEach(r => {
                 const t = r.test || "";
                 if (t === "IPU" || t === "PR") categories.early.racks.push(r.serial);
                 else if (t === "RUNIN") categories.slt.racks.push(r.serial);
                 else if (["RL12", "RML", "RLT"].includes(t)) categories.passed.racks.push(r.serial);
             });
-
             let noteText = `SHIFT SUMMARY - ${date}\n\n`;
             Object.values(categories).forEach(cat => {
-                noteText += `${cat.label} (${cat.racks.length}):\n`;
-                noteText += cat.racks.length > 0 ? `- ${cat.racks.join(', ')}\n\n` : "- None\n\n";
+                noteText += `${cat.label} (${cat.racks.length}):\n${cat.racks.length > 0 ? `- ${cat.racks.join(', ')}` : "- None"}\n\n`;
             });
-
             document.getElementById('shiftNotes').value = noteText;
         }
 
@@ -382,195 +350,158 @@
             const pTbody = document.getElementById('passedTableBody');
             const cTbody = document.getElementById('checkedOutTableBody');
             aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
-            
             let current = [...(allRacks[date] || [])];
-            
             current.sort((a, b) => {
-                let aVal = a[currentSort.key] || '';
-                let bVal = b[currentSort.key] || '';
+                let aVal = a[currentSort.key] || ''; let bVal = b[currentSort.key] || '';
                 if (currentSort.key === 'serial') {
-                    const aMatch = aVal.toString().match(/\d+/);
-                    const bMatch = bVal.toString().match(/\d+/);
-                    if (aMatch && bMatch) {
-                        aVal = parseInt(aMatch[0]);
-                        bVal = parseInt(bMatch[0]);
-                    }
+                    const aM = aVal.toString().match(/\d+/); const bM = bVal.toString().match(/\d+/);
+                    if (aM && bM) { aVal = parseInt(aM[0]); bVal = parseInt(bM[0]); }
                 }
-                if (aVal < bVal) return currentSort.dir === 'asc' ? -1 : 1;
-                if (aVal > bVal) return currentSort.dir === 'asc' ? 1 : -1;
-                return 0;
+                return aVal < bVal ? (currentSort.dir === 'asc' ? -1 : 1) : (currentSort.dir === 'asc' ? 1 : -1);
             });
-            
             current.forEach(r => {
-                const testSelect = `
-                    <select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">
-                        ${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}
-                    </select>
-                `;
-
+                const testSelect = `<select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
                 if(r.active) {
-                    aTbody.innerHTML += `<tr>
-                        <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
-                        <td class="px-6 py-4 font-bold text-blue-400">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText)">${r.serial}</div>
-                        </td>
-                        <td class="px-6 py-4">${testSelect}</td>
-                        <td class="px-6 py-4">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div>
-                        </td>
-                        <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
-                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td>
-                        <td class="px-6 py-4 text-gray-500">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
-                        </td>
-                    </tr>`;
-                }
-                else if(r.passed) {
-                    pTbody.innerHTML += `<tr>
-                        <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
-                        <td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
-                        <td class="px-6 py-4 text-blue-300 font-bold">${r.test || '--'}</td>
-                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
-                        <td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td>
-                        <td class="px-6 py-4">${r.actionTaken}</td>
-                        <td class="px-6 py-4 text-gray-500">
-                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
-                        </td>
-                    </tr>`;
-                }
-                else if(r.checkedOut) {
-                    cTbody.innerHTML += `<tr>
-                        <td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td>
-                        <td class="px-6 py-4 text-orange-300 font-bold">${r.test || '--'}</td>
-                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td>
-                        <td class="px-6 py-4 wrap-col">${r.issuesFound}</td>
-                        <td class="px-6 py-4">
-                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div>
-                        </td>
-                    </tr>`;
+                    aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText)">${r.serial}</div></td><td class="px-6 py-4">${testSelect}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td><td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td><td class="px-6 py-4 text-gray-500"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td></tr>`;
+                } else if(r.passed) {
+                    pTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td><td class="px-6 py-4 text-blue-300 font-bold">${r.test || '--'}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td><td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4 text-gray-500"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td></tr>`;
+                } else if(r.checkedOut) {
+                    cTbody.innerHTML += `<tr><td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td><td class="px-6 py-4 text-orange-300 font-bold">${r.test || '--'}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td></tr>`;
                 }
             });
-
             document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
             document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
             document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
             updateShiftNotes();
         }
 
-        function returnToActivePrompt(date, id, serial) {
-            if(confirm(`Move Rack ${serial} back to Active table?`)) {
-                const rack = allRacks[date].find(r => r.id === id);
-                if (rack) {
-                    rack.active = true;
-                    rack.checkedOut = false;
-                    rack.passed = false;
-                    syncAndRefresh();
-                }
-            }
-        }
-
-        function openCheckoutModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('checkoutModal');
-        }
-
+        // Action confirmation functions...
         function confirmCheckout() {
             const id = parseInt(document.getElementById('checkoutRackSelector').value);
             const reason = document.getElementById('checkoutReason').value;
             const test = document.getElementById('checkoutTest').value;
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
             if (idx !== -1) {
-                allRacks[dInput.value][idx].active = false;
-                allRacks[dInput.value][idx].checkedOut = true;
-                allRacks[dInput.value][idx].issuesFound = reason;
-                allRacks[dInput.value][idx].test = test;
-                syncAndRefresh();
-                toggleModal('checkoutModal');
-                document.getElementById('checkoutReason').value = '';
+                Object.assign(allRacks[dInput.value][idx], { active: false, checkedOut: true, issuesFound: reason, test });
+                syncAndRefresh(); toggleModal('checkoutModal'); document.getElementById('checkoutReason').value = '';
             }
         }
-
-        function openPassModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('passModal');
-        }
-
         function confirmPassRack() {
             const id = parseInt(document.getElementById('passRackSelector').value);
             const action = document.getElementById('passNotes').value;
             const test = document.getElementById('passTest').value;
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
             if (idx !== -1) {
-                allRacks[dInput.value][idx].active = false;
-                allRacks[dInput.value][idx].passed = true;
-                allRacks[dInput.value][idx].actionTaken = action;
-                allRacks[dInput.value][idx].test = test;
-                syncAndRefresh();
-                toggleModal('passModal');
-                document.getElementById('passNotes').value = '';
+                Object.assign(allRacks[dInput.value][idx], { active: false, passed: true, actionTaken: action, test });
+                syncAndRefresh(); toggleModal('passModal'); document.getElementById('passNotes').value = '';
             }
         }
-
+        function openCheckoutModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('checkoutModal');
+        }
+        function openPassModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
         function openDeleteModal() {
             const all = allRacks[dInput.value] || [];
             document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
             toggleModal('deleteModal');
         }
-
         function confirmDeleteRack() {
             const id = parseInt(document.getElementById('deleteRackSelector').value);
             const idx = allRacks[dInput.value].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[dInput.value].splice(idx, 1);
-                syncAndRefresh();
-                toggleModal('deleteModal');
+            if (idx !== -1) { allRacks[dInput.value].splice(idx, 1); syncAndRefresh(); toggleModal('deleteModal'); }
+        }
+        function returnToActivePrompt(date, id, serial) {
+            if(confirm(`Move Rack ${serial} back to Active?`)) {
+                const rack = allRacks[date].find(r => r.id === id);
+                if (rack) { Object.assign(rack, { active: true, checkedOut: false, passed: false }); syncAndRefresh(); }
             }
         }
-
         function updateField(date, id, field, text) {
             const rack = allRacks[date].find(r => r.id === id);
-            if (rack) { 
-                rack[field] = text.trim(); 
-                localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
-                updateShiftNotes();
-            }
+            if (rack) { rack[field] = text.trim(); localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); updateShiftNotes(); }
         }
-
-        function syncAndRefresh() { 
-            localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); 
-            loadAndDisplayReport(); 
-        }
-
+        function syncAndRefresh() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
         function importDatabase(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        allRacks = JSON.parse(e.target.result).db || {};
-                        syncAndRefresh();
-                        alert('Import successful.');
-                    } catch (err) { alert('Invalid file.'); }
-                };
+                reader.onload = e => { try { allRacks = JSON.parse(e.target.result).db || {}; syncAndRefresh(); alert('Imported.'); } catch (err) { alert('Invalid.'); } };
                 reader.readAsText(file);
             }
         }
-
-        function exportReport() {
-            const date = dInput.value;
-            const jsonBlob = new Blob([JSON.stringify({ db: allRacks })], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(jsonBlob);
-            a.download = `RackTracker_${date}.json`;
-            a.click();
-        }
-
         function setSort(key) {
             if (currentSort.key === key) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
             else { currentSort.key = key; currentSort.dir = 'asc'; }
             loadAndDisplayReport();
+        }
+
+        // --- NEW EXPORT FUNCTION FOR MICROSOFT TEAMS ---
+        function exportForTeams() {
+            const date = dInput.value;
+            const current = allRacks[date] || [];
+            const notes = document.getElementById('shiftNotes').value;
+
+            const active = current.filter(r => r.active);
+            const repairs = current.filter(r => r.checkedOut);
+            const passed = current.filter(r => r.passed);
+
+            let win = window.open('', '_blank');
+            win.document.write(`
+                <html>
+                <head>
+                    <title>EOS 1st Shift Report</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; color: #333; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+                        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        h1 { color: #2563eb; margin-bottom: 5px; }
+                        h2 { border-bottom: 2px solid #2563eb; padding-bottom: 5px; margin-top: 30px; }
+                        .notes { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; white-space: pre-wrap; font-family: monospace; }
+                    </style>
+                </head>
+                <body>
+                    <h1>EOS 1st Shift</h1>
+                    <p><strong>Date:</strong> ${date}</p>
+
+                    <h2>SHIFT SUMMARY</h2>
+                    <div class="notes">${notes}</div>
+
+                    <h2>ACTIVE RACKS</h2>
+                    <table>
+                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
+                        <tbody>
+                            ${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+
+                    <h2>RACKS CHECKED OUT FOR REPAIR</h2>
+                    <table>
+                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Reason/Issues</th><th>Checked Out By</th></tr></thead>
+                        <tbody>
+                            ${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+
+                    <h2>PASSED RACKS</h2>
+                    <table>
+                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
+                        <tbody>
+                            ${passed.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <p style="color: gray; font-size: 12px;">Highlight all text (Ctrl+A) and copy (Ctrl+C) to paste into Teams.</p>
+                </body>
+                </html>
+            `);
+            win.document.close();
         }
     </script>
 </body>
