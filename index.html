@@ -10,7 +10,8 @@
         ::-webkit-calendar-picker-indicator { filter: invert(1); }
         [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
         #mainApp, #resetScreen { display: none; }
-        .modal { transition: opacity 0.2s ease; display: none; }
+        /* Modals are hidden by default and only shown via JS */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
         .wrap-col { width: 250px; max-width: 250px; white-space: normal; word-break: break-word; }
     </style>
 </head>
@@ -62,59 +63,30 @@
                         <option value="pass">Pass Rack</option>
                         <option value="checkout">Check Out for Repair</option>
                         <option value="export">Export Teams Report</option>
-                        <option value="import">Import File</option>
                         <option value="delete">Delete Rack</option>
                     </select>
-                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
                 </div>
             </div>
 
-            <div id="tablesContainer" class="space-y-8">
-                <div class="rounded-2xl overflow-hidden border border-emerald-900/30">
-                    <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
-                        <span id="activeCount" class="text-xs font-mono text-emerald-300">0 Units</span>
-                    </div>
-                    <div class="bg-gray-900 overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
-                                <tr>
-                                    <th class="px-6 py-3">Date</th>
-                                    <th class="px-6 py-3">Rack ID</th>
-                                    <th class="px-6 py-3">Test</th>
-                                    <th class="px-6 py-3">Location</th>
-                                    <th class="px-6 py-3">Issues Found</th>
-                                    <th class="px-6 py-3">Action Taken</th>
-                                    <th class="px-6 py-3">Checked By</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
-                        </table>
-                    </div>
+            <div class="rounded-2xl overflow-hidden border border-emerald-900/30">
+                <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
+                    <span id="activeCount" class="text-xs font-mono text-emerald-300">0 Units</span>
                 </div>
-
-                <div class="rounded-2xl overflow-hidden border border-orange-900/30">
-                    <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-orange-400">Racks Checked Out for Repair</h3>
-                        <span id="checkedOutCount" class="text-xs font-mono text-orange-300">0 Units</span>
-                    </div>
-                    <div class="bg-gray-900 overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <tbody id="checkedOutTableBody" class="divide-y divide-gray-800"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="rounded-2xl overflow-hidden border border-blue-900/30">
-                    <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
-                        <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
-                        <span id="passedCount" class="text-xs font-mono text-blue-300">0 Units</span>
-                    </div>
-                    <div class="bg-gray-900 overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <tbody id="passedTableBody" class="divide-y divide-gray-800"></tbody>
-                        </table>
-                    </div>
+                <div class="bg-gray-900 overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-6 py-3">Rack ID</th>
+                                <th class="px-6 py-3">Test</th>
+                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3">Issues Found</th>
+                                <th class="px-6 py-3">Action Taken</th>
+                                <th class="px-6 py-3">Checked By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -125,16 +97,18 @@
         </div>
     </div>
 
-    <div id="rackModal" class="modal fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div id="rackModal" class="modal-overlay">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-blue-400">Add Rack</h3>
             <div class="space-y-4">
                 <div class="flex gap-2 p-1 bg-gray-800 rounded-lg">
-                    <button id="btnNew" onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold">New</button>
-                    <button id="btnFromYesterday" onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold">From Yesterday</button>
+                    <button onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold">New</button>
+                    <button onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold">From Yesterday</button>
                 </div>
-                <div id="yesterdaySelectGroup" class="hidden"><select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select></div>
+                <div id="yesterdaySelectGroup" class="hidden">
+                    <select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select>
+                </div>
                 <div id="newEntryFields" class="space-y-4">
                     <input type="text" id="newRackSerial" placeholder="Rack Serial" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
                     <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
@@ -149,7 +123,7 @@
         </div>
     </div>
 
-    <div id="checkoutModal" class="modal fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div id="checkoutModal" class="modal-overlay">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 space-y-6 relative">
             <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500">✕</button>
             <h3 class="text-2xl font-bold text-orange-400">Check Out for Repair</h3>
@@ -159,7 +133,7 @@
         </div>
     </div>
 
-    <div id="passModal" class="modal fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+    <div id="passModal" class="modal-overlay">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 space-y-6 relative">
             <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500">✕</button>
             <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
@@ -170,12 +144,10 @@
     </div>
 
     <script>
-        // --- AUTH & SETUP ---
         const savedAuth = JSON.parse(localStorage.getItem('customAuth'));
         const auth = savedAuth || { user: 'TempUser', pass: 'Reset123', isTemp: true };
         const adminAuth = { user: 'Admin', pass: '0122' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        const stations = ["FRU", "IPU", "PR", "RUNIN", "RL12", "RML", "RLT"];
         let addMode = 'new';
 
         window.onload = () => { if(localStorage.getItem('rememberMe') === 'true') enterApp(); };
@@ -185,8 +157,13 @@
             const p = document.getElementById('passIn').value;
             if (u === adminAuth.user && p === adminAuth.pass) { localStorage.setItem('rememberMe', 'true'); enterApp(); }
             else if (u === auth.user && p === auth.pass) {
-                if (auth.isTemp) { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('resetScreen').style.display = 'flex'; }
-                else { localStorage.setItem('rememberMe', 'true'); enterApp(); }
+                if (auth.isTemp) { 
+                    document.getElementById('loginScreen').style.display = 'none'; 
+                    document.getElementById('resetScreen').style.display = 'flex'; 
+                } else { 
+                    localStorage.setItem('rememberMe', 'true'); 
+                    enterApp(); 
+                }
             } else alert("Invalid Credentials.");
         }
 
@@ -207,24 +184,38 @@
 
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
 
-        // --- TRACKER LOGIC ---
         const dInput = document.getElementById('dateFilter');
         dInput.value = new Date().toISOString().split('T')[0];
         dInput.addEventListener('change', loadAndDisplayReport);
 
+        // --- THE ACTION MENU BRAIN ---
         function handleActionMenu(v) {
             if(!v) return;
-            if(v === 'add') openAddModal();
+            if(v === 'add') toggleModal('rackModal');
             if(v === 'pass') openPassModal();
             if(v === 'checkout') openCheckoutModal();
             if(v === 'export') exportForTeams();
-            if(v === 'delete') openDeleteModal();
+            if(v === 'delete') alert("Delete function not configured in this view.");
             document.getElementById('actionMenu').value = "";
         }
 
         function toggleModal(id) {
             const m = document.getElementById(id);
             m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function openPassModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            if(act.length === 0) return alert("No active racks to pass.");
+            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function openCheckoutModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            if(act.length === 0) return alert("No active racks to check out.");
+            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('checkoutModal');
         }
 
         function toggleAddMode(mode) {
@@ -250,28 +241,17 @@
                 serial = document.getElementById('newRackSerial').value;
                 location = document.getElementById('newRackLocation').value;
             }
+            if(!serial) return alert("Serial required.");
             const date = dInput.value;
             if(!allRacks[date]) allRacks[date] = [];
             allRacks[date].push({ id: Date.now(), serial, location, test: document.getElementById('newRackTest').value, checkedBy: document.getElementById('newRackCheckedBy').value, active: true, passed: false, checkedOut: false, issuesFound: '', actionTaken: '' });
             sync(); toggleModal('rackModal');
         }
 
-        function openPassModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('passModal');
-        }
-
         function confirmPassRack() {
             const id = parseInt(document.getElementById('passRackSelector').value);
             const rack = allRacks[dInput.value].find(r => r.id === id);
             if(rack) { Object.assign(rack, { active: false, passed: true, actionTaken: document.getElementById('passNotes').value }); sync(); toggleModal('passModal'); }
-        }
-
-        function openCheckoutModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('checkoutModal');
         }
 
         function confirmCheckout() {
@@ -294,26 +274,20 @@
         function loadAndDisplayReport() {
             const date = dInput.value;
             const aT = document.getElementById('activeTableBody');
-            const pT = document.getElementById('passedTableBody');
-            const cT = document.getElementById('checkedOutTableBody');
-            aT.innerHTML = ''; pT.innerHTML = ''; cT.innerHTML = '';
-            (allRacks[date] || []).forEach(r => {
-                const row = `<tr><td class="px-6 py-4">${date}</td><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.test}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
-                if(r.active) aT.innerHTML += row;
-                else if(r.passed) pT.innerHTML += row;
-                else if(r.checkedOut) cT.innerHTML += row;
+            aT.innerHTML = '';
+            (allRacks[date] || []).filter(r => r.active).forEach(r => {
+                aT.innerHTML += `<tr><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.test}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
             });
+            document.getElementById('activeCount').innerText = `${(allRacks[date] || []).filter(r=>r.active).length} Units`;
             updateShiftNotes();
         }
 
         function sync() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
 
         function exportForTeams() {
-            const date = dInput.value;
-            const current = allRacks[date] || [];
             const notes = document.getElementById('shiftNotes').value;
             let win = window.open('', '_blank');
-            win.document.write(`<html><head><style>table{border-collapse:collapse;width:100%} th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>EOS 1st Shift - ${date}</h1><h3>Shift Notes</h3><pre>${notes}</pre><h3>Active Racks</h3><table><tr><th>Rack</th><th>Test</th><th>Location</th></tr>${current.filter(r=>r.active).map(r=>`<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td></tr>`).join('')}</table></body></html>`);
+            win.document.write(`<html><body><h1>Shift Handover</h1><pre>${notes}</pre></body></html>`);
             win.document.close();
         }
     </script>
