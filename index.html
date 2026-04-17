@@ -23,10 +23,16 @@
                 <h1 class="text-3xl font-extrabold text-blue-400">Rack<span class="text-white"> Tracker</span></h1>
                 <p class="text-gray-500 text-sm mt-2">Authorized Access Only</p>
             </div>
-            <div class="space-y-4">
+            <div id="loginFields" class="space-y-4">
                 <input type="text" id="userIn" placeholder="Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 <input type="password" id="passIn" placeholder="Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Login</button>
+            </div>
+            <div id="setupFields" class="hidden space-y-4">
+                <p class="text-orange-400 text-xs font-bold text-center">New User Detected: Set your permanent credentials.</p>
+                <input type="text" id="newUser" placeholder="New Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="password" id="newPass" placeholder="New Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <button onclick="saveNewCredentials()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">Create Account</button>
             </div>
         </div>
     </div>
@@ -154,6 +160,7 @@
                     <label class="text-xs text-gray-500 uppercase">Initial Test Station</label>
                     <select id="newRackTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                         <option value="IPU">IPU</option>
+                        <option value="FRU">FRU</option>
                         <option value="PR">PR</option>
                         <option value="RUNIN">RUNIN</option>
                         <option value="RL12">RL12</option>
@@ -177,6 +184,7 @@
                     <label class="text-xs text-gray-500 uppercase">Update Test Station</label>
                     <select id="checkoutTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                         <option value="IPU">IPU</option>
+                        <option value="FRU">FRU</option>
                         <option value="PR">PR</option>
                         <option value="RUNIN">RUNIN</option>
                         <option value="RL12">RL12</option>
@@ -214,6 +222,7 @@
                         <option value="RML">RML</option>
                         <option value="RLT">RLT</option>
                         <option value="IPU">IPU</option>
+                        <option value="FRU">FRU</option>
                         <option value="PR">PR</option>
                         <option value="RUNIN">RUNIN</option>
                     </select>
@@ -225,20 +234,44 @@
     </div>
 
     <script>
-        const auth = { user: 'Admin', pass: '0122' };
+        // Authentication logic
+        const authKey = 'rackTrackerAuth';
+        let auth = JSON.parse(localStorage.getItem(authKey)) || { user: 'Admin', pass: '0122' };
+        const tempAuth = { user: 'TempUser', pass: '1234' };
+
         let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        const stations = ["IPU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+        const stations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
 
         window.onload = function() {
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
         };
 
         function handleLogin() {
-            if(document.getElementById('userIn').value === auth.user && document.getElementById('passIn').value === auth.pass) { 
+            const u = document.getElementById('userIn').value;
+            const p = document.getElementById('passIn').value;
+            
+            if(u === auth.user && p === auth.pass) { 
                 localStorage.setItem('rememberMe', 'true');
                 enterApp();
-            } else alert("Invalid Credentials.");
+            } else if(u === tempAuth.user && p === tempAuth.pass) {
+                document.getElementById('loginFields').classList.add('hidden');
+                document.getElementById('setupFields').classList.remove('hidden');
+            } else {
+                alert("Invalid Credentials.");
+            }
+        }
+
+        function saveNewCredentials() {
+            const u = document.getElementById('newUser').value.trim();
+            const p = document.getElementById('newPass').value.trim();
+            if(!u || !p) return alert("Please provide both a username and password.");
+            
+            auth = { user: u, pass: p };
+            localStorage.setItem(authKey, JSON.stringify(auth));
+            localStorage.setItem('rememberMe', 'true');
+            alert("Credentials saved! Logged in.");
+            enterApp();
         }
 
         function enterApp() {
@@ -270,7 +303,6 @@
             document.getElementById('actionMenu').value = "";
         }
 
-        // Logic for Add, Pass, Checkout, Delete same as previous version...
         function openAddModal() { toggleAddMode('new'); toggleModal('rackModal'); }
         function toggleAddMode(mode) {
             addMode = mode;
@@ -333,7 +365,7 @@
             };
             current.forEach(r => {
                 const t = r.test || "";
-                if (t === "IPU" || t === "PR") categories.early.racks.push(r.serial);
+                if (["IPU", "FRU", "PR"].includes(t)) categories.early.racks.push(r.serial);
                 else if (t === "RUNIN") categories.slt.racks.push(r.serial);
                 else if (["RL12", "RML", "RLT"].includes(t)) categories.passed.racks.push(r.serial);
             });
@@ -375,7 +407,6 @@
             updateShiftNotes();
         }
 
-        // Action confirmation functions...
         function confirmCheckout() {
             const id = parseInt(document.getElementById('checkoutRackSelector').value);
             const reason = document.getElementById('checkoutReason').value;
@@ -441,16 +472,13 @@
             loadAndDisplayReport();
         }
 
-        // --- NEW EXPORT FUNCTION FOR MICROSOFT TEAMS ---
         function exportForTeams() {
             const date = dInput.value;
             const current = allRacks[date] || [];
             const notes = document.getElementById('shiftNotes').value;
-
             const active = current.filter(r => r.active);
             const repairs = current.filter(r => r.checkedOut);
             const passed = current.filter(r => r.passed);
-
             let win = window.open('', '_blank');
             win.document.write(`
                 <html>
@@ -469,38 +497,18 @@
                 <body>
                     <h1>EOS 1st Shift</h1>
                     <p><strong>Date:</strong> ${date}</p>
-
                     <h2>SHIFT SUMMARY</h2>
                     <div class="notes">${notes}</div>
-
                     <h2>ACTIVE RACKS</h2>
-                    <table>
-                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
-                        <tbody>
-                            ${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-
-                    <h2>RACKS CHECKED OUT FOR REPAIR</h2>
-                    <table>
-                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Reason/Issues</th><th>Checked Out By</th></tr></thead>
-                        <tbody>
-                            ${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-
+                    <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Issues Found</th><th>Checked By</th></tr></thead>
+                    <tbody>${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
+                    <h2>REPAIR/CHECKOUTS</h2>
+                    <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Reason</th><th>Checked Out By</th></tr></thead>
+                    <tbody>${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
                     <h2>PASSED RACKS</h2>
-                    <table>
-                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
-                        <tbody>
-                            ${passed.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                    
-                    <p style="color: gray; font-size: 12px;">Highlight all text (Ctrl+A) and copy (Ctrl+C) to paste into Teams.</p>
-                </body>
-                </html>
-            `);
+                    <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Action Taken</th><th>Checked By</th></tr></thead>
+                    <tbody>${passed.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
+                </body></html>`);
             win.document.close();
         }
     </script>
