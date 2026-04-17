@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rack Tracker Pro</title>
+    <title>EOS 1st Shift</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { transition: background-color 0.3s, color 0.3s; }
         ::-webkit-calendar-picker-indicator { filter: invert(1); }
         [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
-        #mainApp, #resetScreen { display: none; }
-        /* Modals are hidden by default and only shown via JS */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+        #mainApp { display: none; }
+        .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
+        .sort-header:hover { color: #60a5fa; }
         .wrap-col { width: 250px; max-width: 250px; white-space: normal; word-break: break-word; }
     </style>
 </head>
@@ -31,18 +31,6 @@
         </div>
     </div>
 
-    <div id="resetScreen" class="fixed inset-0 bg-gray-950 items-center justify-center z-[110]">
-        <div class="bg-gray-900 p-10 rounded-2xl border border-emerald-500 shadow-2xl w-full max-w-md space-y-6">
-            <h2 class="text-2xl font-bold text-white">Setup Your Account</h2>
-            <p class="text-gray-400 text-sm">Update your temporary credentials to continue.</p>
-            <div class="space-y-4">
-                <input type="text" id="newUserInfo" placeholder="New Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <input type="password" id="newPassInfo" placeholder="New Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <button onclick="saveNewCredentials()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">Save & Continue</button>
-            </div>
-        </div>
-    </div>
-
     <div id="mainApp">
         <nav class="flex flex-col pb-8 border-b border-gray-800 mb-8">
             <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight leading-none">Rack<span class="text-white"> Tracker</span></h1>
@@ -55,129 +43,206 @@
                     <label class="text-sm font-medium text-gray-400">Select Date</label>
                     <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 </div>
+
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Action Menu</label>
                     <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold">
-                        <option value="">-- Select Action --</option>
-                        <option value="add">Add Rack</option>
-                        <option value="pass">Pass Rack</option>
-                        <option value="checkout">Check Out for Repair</option>
-                        <option value="export">Export Teams Report</option>
-                        <option value="delete">Delete Rack</option>
+                        <option value="" class="bg-gray-900">-- Select Action --</option>
+                        <option value="add" class="bg-gray-900 text-white">Add Rack</option>
+                        <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
+                        <option value="checkout" class="bg-gray-900 text-orange-400">Check Out for Repair</option>
+                        <option value="export" class="bg-gray-900 text-white">Export Teams Report</option>
+                        <option value="import" class="bg-gray-900 text-white">Import File</option>
+                        <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
                     </select>
+                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
                 </div>
             </div>
 
-            <div class="rounded-2xl overflow-hidden border border-emerald-900/30">
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
                 <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
-                    <span id="activeCount" class="text-xs font-mono text-emerald-300">0 Units</span>
+                    <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3">Test</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 wrap-col">Issues Found</th>
+                                <th class="px-6 py-3">Action Taken</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('checkedBy')">Checked By ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeTableBody" class="divide-y divide-gray-800 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-orange-900/30">
+                <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-orange-400">Racks Checked Out for Repair</h3>
+                    <span id="checkedOutCount" class="text-xs font-mono bg-orange-900/50 px-2 py-1 rounded border border-orange-700 text-orange-300">0 Units</span>
                 </div>
                 <div class="bg-gray-900 overflow-x-auto">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3">Rack ID</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ↕</th>
                                 <th class="px-6 py-3">Test</th>
-                                <th class="px-6 py-3">Location</th>
-                                <th class="px-6 py-3">Issues Found</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 wrap-col">Reason</th>
+                                <th class="px-6 py-3">Checked Out By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkedOutTableBody" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden shadow-xl border border-blue-900/30">
+                <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
+                    <span id="passedCount" class="text-xs font-mono bg-blue-900/50 px-2 py-1 rounded border border-blue-700 text-blue-300">0 Units</span>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3">Test</th>
+                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
                                 <th class="px-6 py-3">Checked By</th>
                             </tr>
                         </thead>
-                        <tbody id="activeTableBody" class="divide-y divide-gray-800"></tbody>
+                        <tbody id="passedTableBody" class="divide-y divide-gray-800"></tbody>
                     </table>
                 </div>
             </div>
 
             <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
                 <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes (Auto-Generated)</h3>
-                <textarea id="shiftNotes" rows="8" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono"></textarea>
+                <textarea id="shiftNotes" rows="8" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Notes will appear here..."></textarea>
             </div>
         </div>
     </div>
 
-    <div id="rackModal" class="modal-overlay">
+    <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-blue-400">Add Rack</h3>
             <div class="space-y-4">
                 <div class="flex gap-2 p-1 bg-gray-800 rounded-lg">
-                    <button onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold">New</button>
-                    <button onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold">From Yesterday</button>
+                    <button id="btnNew" onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition">New Entry</button>
+                    <button id="btnFromYesterday" onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition">From Yesterday</button>
                 </div>
-                <div id="yesterdaySelectGroup" class="hidden">
-                    <select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select>
+                <div id="yesterdaySelectGroup" class="hidden space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Select Rack from Yesterday</label>
+                    <select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
                 </div>
                 <div id="newEntryFields" class="space-y-4">
-                    <input type="text" id="newRackSerial" placeholder="Rack Serial" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
-                    <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
+                    <input type="text" id="newRackSerial" placeholder="Rack Serial/ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                    <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 </div>
-                <select id="newRackTest" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
-                    <option value="FRU">FRU</option><option value="IPU">IPU</option><option value="PR">PR</option>
-                    <option value="RUNIN">RUNIN</option><option value="RL12">RL12</option><option value="RML">RML</option><option value="RLT">RLT</option>
-                </select>
-                <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
-                <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Add</button>
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Initial Test Station</label>
+                    <select id="newRackTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="IPU">IPU</option>
+                        <option value="PR">PR</option>
+                        <option value="RUNIN">RUNIN</option>
+                        <option value="RL12">RL12</option>
+                        <option value="RML">RML</option>
+                        <option value="RLT">RLT</option>
+                    </select>
+                </div>
+                <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white shadow-lg">Confirm Add</button>
             </div>
         </div>
     </div>
 
-    <div id="checkoutModal" class="modal-overlay">
-        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 space-y-6 relative">
-            <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500">✕</button>
+    <div id="checkoutModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-orange-400">Check Out for Repair</h3>
-            <select id="checkoutRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select>
-            <textarea id="checkoutReason" placeholder="Reason..." class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></textarea>
-            <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white">Confirm Checkout</button>
+            <div class="space-y-4">
+                <select id="checkoutRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Update Test Station</label>
+                    <select id="checkoutTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="IPU">IPU</option>
+                        <option value="PR">PR</option>
+                        <option value="RUNIN">RUNIN</option>
+                        <option value="RL12">RL12</option>
+                        <option value="RML">RML</option>
+                        <option value="RLT">RLT</option>
+                    </select>
+                </div>
+                <textarea id="checkoutReason" placeholder="Reason for Repair..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white">Confirm Checkout</button>
+            </div>
         </div>
     </div>
 
-    <div id="passModal" class="modal-overlay">
-        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 space-y-6 relative">
-            <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500">✕</button>
+    <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('deleteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-red-400">Delete Rack</h3>
+            <div class="space-y-4">
+                <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <button onclick="confirmDeleteRack()" class="w-full bg-red-600 py-3 rounded-xl font-bold text-white">Delete Rack</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
-            <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select>
-            <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></textarea>
-            <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
+            <div class="space-y-4">
+                <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
+                <div class="space-y-2">
+                    <label class="text-xs text-gray-500 uppercase">Target Station</label>
+                    <select id="passTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="RL12">RL12</option>
+                        <option value="RML">RML</option>
+                        <option value="RLT">RLT</option>
+                        <option value="IPU">IPU</option>
+                        <option value="PR">PR</option>
+                        <option value="RUNIN">RUNIN</option>
+                    </select>
+                </div>
+                <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
+                <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const savedAuth = JSON.parse(localStorage.getItem('customAuth'));
-        const auth = savedAuth || { user: 'TempUser', pass: 'Reset123', isTemp: true };
-        const adminAuth = { user: 'Admin', pass: '0122' };
+        const auth = { user: 'Admin', pass: '0122' };
+        let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        let addMode = 'new';
+        const stations = ["IPU", "PR", "RUNIN", "RL12", "RML", "RLT"];
 
-        window.onload = () => { if(localStorage.getItem('rememberMe') === 'true') enterApp(); };
+        window.onload = function() {
+            if(localStorage.getItem('rememberMe') === 'true') enterApp();
+        };
 
         function handleLogin() {
-            const u = document.getElementById('userIn').value;
-            const p = document.getElementById('passIn').value;
-            if (u === adminAuth.user && p === adminAuth.pass) { localStorage.setItem('rememberMe', 'true'); enterApp(); }
-            else if (u === auth.user && p === auth.pass) {
-                if (auth.isTemp) { 
-                    document.getElementById('loginScreen').style.display = 'none'; 
-                    document.getElementById('resetScreen').style.display = 'flex'; 
-                } else { 
-                    localStorage.setItem('rememberMe', 'true'); 
-                    enterApp(); 
-                }
+            if(document.getElementById('userIn').value === auth.user && document.getElementById('passIn').value === auth.pass) { 
+                localStorage.setItem('rememberMe', 'true');
+                enterApp();
             } else alert("Invalid Credentials.");
-        }
-
-        function saveNewCredentials() {
-            const newUser = document.getElementById('newUserInfo').value.trim();
-            const newPass = document.getElementById('newPassInfo').value.trim();
-            if (!newUser || !newPass) return alert("Fill fields.");
-            localStorage.setItem('customAuth', JSON.stringify({ user: newUser, pass: newPass, isTemp: false }));
-            alert("Account updated!"); location.reload();
         }
 
         function enterApp() {
             document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('resetScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             loadAndDisplayReport();
         }
@@ -188,106 +253,254 @@
         dInput.value = new Date().toISOString().split('T')[0];
         dInput.addEventListener('change', loadAndDisplayReport);
 
-        // --- THE ACTION MENU BRAIN ---
-        function handleActionMenu(v) {
-            if(!v) return;
-            if(v === 'add') toggleModal('rackModal');
-            if(v === 'pass') openPassModal();
-            if(v === 'checkout') openCheckoutModal();
-            if(v === 'export') exportForTeams();
-            if(v === 'delete') alert("Delete function not configured in this view.");
+        function toggleModal(id) {
+            const m = document.getElementById(id);
+            m.classList.toggle('opacity-0');
+            m.classList.toggle('pointer-events-none');
+        }
+
+        function handleActionMenu(value) {
+            if(!value) return;
+            if(value === 'add') openAddModal();
+            if(value === 'pass') openPassModal();
+            if(value === 'checkout') openCheckoutModal();
+            if(value === 'export') exportForTeams();
+            if(value === 'import') document.getElementById('importFile').click();
+            if(value === 'delete') openDeleteModal();
             document.getElementById('actionMenu').value = "";
         }
 
-        function toggleModal(id) {
-            const m = document.getElementById(id);
-            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
-        }
-
-        function openPassModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            if(act.length === 0) return alert("No active racks to pass.");
-            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('passModal');
-        }
-
-        function openCheckoutModal() {
-            const act = (allRacks[dInput.value] || []).filter(r => r.active);
-            if(act.length === 0) return alert("No active racks to check out.");
-            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
-            toggleModal('checkoutModal');
-        }
-
+        // Logic for Add, Pass, Checkout, Delete same as previous version...
+        function openAddModal() { toggleAddMode('new'); toggleModal('rackModal'); }
         function toggleAddMode(mode) {
             addMode = mode;
-            document.getElementById('yesterdaySelectGroup').classList.toggle('hidden', mode === 'new');
-            document.getElementById('newEntryFields').classList.toggle('hidden', mode === 'yesterday');
-            if(mode === 'yesterday') populateYesterday();
+            const btnNew = document.getElementById('btnNew');
+            const btnYest = document.getElementById('btnFromYesterday');
+            const yestGroup = document.getElementById('yesterdaySelectGroup');
+            const newGroup = document.getElementById('newEntryFields');
+            if (mode === 'yesterday') {
+                btnYest.className = "flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition";
+                btnNew.className = "flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition";
+                yestGroup.classList.remove('hidden');
+                newGroup.classList.add('hidden');
+                populateYesterdayRacks();
+            } else {
+                btnNew.className = "flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold transition";
+                btnYest.className = "flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition";
+                newGroup.classList.remove('hidden');
+                yestGroup.classList.add('hidden');
+            }
         }
-
-        function populateYesterday() {
-            const yest = new Date(dInput.value); yest.setDate(yest.getDate()-1);
-            const yKey = yest.toISOString().split('T')[0];
-            const racks = allRacks[yKey] || [];
-            document.getElementById('yesterdayRackSelector').innerHTML = racks.map(r => `<option value='${JSON.stringify(r)}'>${r.serial}</option>`).join('');
+        function populateYesterdayRacks() {
+            const today = new Date(dInput.value);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yKey = yesterday.toISOString().split('T')[0];
+            const yRacks = allRacks[yKey] || [];
+            const selector = document.getElementById('yesterdayRackSelector');
+            selector.innerHTML = yRacks.length === 0 ? '<option value="">No racks from yesterday</option>' : 
+                yRacks.map(r => `<option value="${encodeURIComponent(JSON.stringify(r))}">${r.serial} (${r.location})</option>`).join('');
         }
-
         function confirmAddRack() {
             let serial, location;
-            if(addMode === 'yesterday') {
-                const data = JSON.parse(document.getElementById('yesterdayRackSelector').value);
-                serial = data.serial; location = data.location;
-            } else {
-                serial = document.getElementById('newRackSerial').value;
-                location = document.getElementById('newRackLocation').value;
-            }
-            if(!serial) return alert("Serial required.");
+            const checkedBy = document.getElementById('newRackCheckedBy').value.trim();
+            const test = document.getElementById('newRackTest').value;
             const date = dInput.value;
-            if(!allRacks[date]) allRacks[date] = [];
-            allRacks[date].push({ id: Date.now(), serial, location, test: document.getElementById('newRackTest').value, checkedBy: document.getElementById('newRackCheckedBy').value, active: true, passed: false, checkedOut: false, issuesFound: '', actionTaken: '' });
-            sync(); toggleModal('rackModal');
-        }
-
-        function confirmPassRack() {
-            const id = parseInt(document.getElementById('passRackSelector').value);
-            const rack = allRacks[dInput.value].find(r => r.id === id);
-            if(rack) { Object.assign(rack, { active: false, passed: true, actionTaken: document.getElementById('passNotes').value }); sync(); toggleModal('passModal'); }
-        }
-
-        function confirmCheckout() {
-            const id = parseInt(document.getElementById('checkoutRackSelector').value);
-            const rack = allRacks[dInput.value].find(r => r.id === id);
-            if(rack) { Object.assign(rack, { active: false, checkedOut: true, issuesFound: document.getElementById('checkoutReason').value }); sync(); toggleModal('checkoutModal'); }
+            if (addMode === 'yesterday') {
+                const selectedData = document.getElementById('yesterdayRackSelector').value;
+                if (!selectedData) return alert("No rack selected.");
+                const rackData = JSON.parse(decodeURIComponent(selectedData));
+                serial = rackData.serial; location = rackData.location;
+            } else {
+                serial = document.getElementById('newRackSerial').value.trim();
+                location = document.getElementById('newRackLocation').value.trim();
+            }
+            if (!serial) return alert('Rack Serial is required.');
+            if (!allRacks[date]) allRacks[date] = [];
+            allRacks[date].push({ id: Date.now(), serial, location, test, checkedBy, active: true, passed: false, checkedOut: false, issuesFound: '', actionTaken: '' });
+            syncAndRefresh();
+            toggleModal('rackModal');
+            document.getElementById('newRackSerial').value = ''; document.getElementById('newRackLocation').value = '';
         }
 
         function updateShiftNotes() {
-            const current = (allRacks[dInput.value] || []).filter(r => r.active);
-            const cats = { early: [], slt: [], passed: [] };
+            const date = dInput.value;
+            const current = (allRacks[date] || []).filter(r => r.active === true);
+            const categories = {
+                early: { label: "Early-stage testing", racks: [] },
+                slt: { label: "In SLT", racks: [] },
+                passed: { label: "Passed SLT", racks: [] }
+            };
             current.forEach(r => {
-                if(["FRU", "IPU", "PR"].includes(r.test)) cats.early.push(r.serial);
-                else if(r.test === "RUNIN") cats.slt.push(r.serial);
-                else cats.passed.push(r.serial);
+                const t = r.test || "";
+                if (t === "IPU" || t === "PR") categories.early.racks.push(r.serial);
+                else if (t === "RUNIN") categories.slt.racks.push(r.serial);
+                else if (["RL12", "RML", "RLT"].includes(t)) categories.passed.racks.push(r.serial);
             });
-            document.getElementById('shiftNotes').value = `SHIFT SUMMARY - ${dInput.value}\n\nEarly-stage (${cats.early.length}): ${cats.early.join(', ') || 'None'}\nIn SLT (${cats.slt.length}): ${cats.slt.join(', ') || 'None'}\nPassed SLT (${cats.passed.length}): ${cats.passed.join(', ') || 'None'}`;
+            let noteText = `SHIFT SUMMARY - ${date}\n\n`;
+            Object.values(categories).forEach(cat => {
+                noteText += `${cat.label} (${cat.racks.length}):\n${cat.racks.length > 0 ? `- ${cat.racks.join(', ')}` : "- None"}\n\n`;
+            });
+            document.getElementById('shiftNotes').value = noteText;
         }
 
         function loadAndDisplayReport() {
             const date = dInput.value;
-            const aT = document.getElementById('activeTableBody');
-            aT.innerHTML = '';
-            (allRacks[date] || []).filter(r => r.active).forEach(r => {
-                aT.innerHTML += `<tr><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.test}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
+            const aTbody = document.getElementById('activeTableBody');
+            const pTbody = document.getElementById('passedTableBody');
+            const cTbody = document.getElementById('checkedOutTableBody');
+            aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
+            let current = [...(allRacks[date] || [])];
+            current.sort((a, b) => {
+                let aVal = a[currentSort.key] || ''; let bVal = b[currentSort.key] || '';
+                if (currentSort.key === 'serial') {
+                    const aM = aVal.toString().match(/\d+/); const bM = bVal.toString().match(/\d+/);
+                    if (aM && bM) { aVal = parseInt(aM[0]); bVal = parseInt(bM[0]); }
+                }
+                return aVal < bVal ? (currentSort.dir === 'asc' ? -1 : 1) : (currentSort.dir === 'asc' ? 1 : -1);
             });
-            document.getElementById('activeCount').innerText = `${(allRacks[date] || []).filter(r=>r.active).length} Units`;
+            current.forEach(r => {
+                const testSelect = `<select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
+                if(r.active) {
+                    aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText)">${r.serial}</div></td><td class="px-6 py-4">${testSelect}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td><td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText)">${r.actionTaken || ''}</div></td><td class="px-6 py-4 text-gray-500"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td></tr>`;
+                } else if(r.passed) {
+                    pTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td><td class="px-6 py-4 text-blue-300 font-bold">${r.test || '--'}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td><td class="px-6 py-4 wrap-col"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText)">${r.issuesFound || ''}</div></td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4 text-gray-500"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td></tr>`;
+                } else if(r.checkedOut) {
+                    cTbody.innerHTML += `<tr><td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${r.serial}')">${r.serial}</td><td class="px-6 py-4 text-orange-300 font-bold">${r.test || '--'}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText)">${r.location || '--'}</div></td><td class="px-6 py-4 wrap-col">${r.issuesFound}</td><td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText)">${r.checkedBy || '--'}</div></td></tr>`;
+                }
+            });
+            document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
+            document.getElementById('passedCount').innerText = `${current.filter(r=>r.passed).length} Units`;
+            document.getElementById('checkedOutCount').innerText = `${current.filter(r=>r.checkedOut).length} Units`;
             updateShiftNotes();
         }
 
-        function sync() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
+        // Action confirmation functions...
+        function confirmCheckout() {
+            const id = parseInt(document.getElementById('checkoutRackSelector').value);
+            const reason = document.getElementById('checkoutReason').value;
+            const test = document.getElementById('checkoutTest').value;
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                Object.assign(allRacks[dInput.value][idx], { active: false, checkedOut: true, issuesFound: reason, test });
+                syncAndRefresh(); toggleModal('checkoutModal'); document.getElementById('checkoutReason').value = '';
+            }
+        }
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('passRackSelector').value);
+            const action = document.getElementById('passNotes').value;
+            const test = document.getElementById('passTest').value;
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) {
+                Object.assign(allRacks[dInput.value][idx], { active: false, passed: true, actionTaken: action, test });
+                syncAndRefresh(); toggleModal('passModal'); document.getElementById('passNotes').value = '';
+            }
+        }
+        function openCheckoutModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('checkoutModal');
+        }
+        function openPassModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+        function openDeleteModal() {
+            const all = allRacks[dInput.value] || [];
+            document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('deleteModal');
+        }
+        function confirmDeleteRack() {
+            const id = parseInt(document.getElementById('deleteRackSelector').value);
+            const idx = allRacks[dInput.value].findIndex(r => r.id === id);
+            if (idx !== -1) { allRacks[dInput.value].splice(idx, 1); syncAndRefresh(); toggleModal('deleteModal'); }
+        }
+        function returnToActivePrompt(date, id, serial) {
+            if(confirm(`Move Rack ${serial} back to Active?`)) {
+                const rack = allRacks[date].find(r => r.id === id);
+                if (rack) { Object.assign(rack, { active: true, checkedOut: false, passed: false }); syncAndRefresh(); }
+            }
+        }
+        function updateField(date, id, field, text) {
+            const rack = allRacks[date].find(r => r.id === id);
+            if (rack) { rack[field] = text.trim(); localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); updateShiftNotes(); }
+        }
+        function syncAndRefresh() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
+        function importDatabase(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => { try { allRacks = JSON.parse(e.target.result).db || {}; syncAndRefresh(); alert('Imported.'); } catch (err) { alert('Invalid.'); } };
+                reader.readAsText(file);
+            }
+        }
+        function setSort(key) {
+            if (currentSort.key === key) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+            else { currentSort.key = key; currentSort.dir = 'asc'; }
+            loadAndDisplayReport();
+        }
 
+        // --- NEW EXPORT FUNCTION FOR MICROSOFT TEAMS ---
         function exportForTeams() {
+            const date = dInput.value;
+            const current = allRacks[date] || [];
             const notes = document.getElementById('shiftNotes').value;
+
+            const active = current.filter(r => r.active);
+            const repairs = current.filter(r => r.checkedOut);
+            const passed = current.filter(r => r.passed);
+
             let win = window.open('', '_blank');
-            win.document.write(`<html><body><h1>Shift Handover</h1><pre>${notes}</pre></body></html>`);
+            win.document.write(`
+                <html>
+                <head>
+                    <title>EOS 1st Shift Report</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; color: #333; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+                        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        h1 { color: #2563eb; margin-bottom: 5px; }
+                        h2 { border-bottom: 2px solid #2563eb; padding-bottom: 5px; margin-top: 30px; }
+                        .notes { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; white-space: pre-wrap; font-family: monospace; }
+                    </style>
+                </head>
+                <body>
+                    <h1>EOS 1st Shift</h1>
+                    <p><strong>Date:</strong> ${date}</p>
+
+                    <h2>SHIFT SUMMARY</h2>
+                    <div class="notes">${notes}</div>
+
+                    <h2>ACTIVE RACKS</h2>
+                    <table>
+                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
+                        <tbody>
+                            ${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+
+                    <h2>RACKS CHECKED OUT FOR REPAIR</h2>
+                    <table>
+                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Reason/Issues</th><th>Checked Out By</th></tr></thead>
+                        <tbody>
+                            ${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+
+                    <h2>PASSED RACKS</h2>
+                    <table>
+                        <thead><tr><th>Rack ID</th><th>Test Station</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
+                        <tbody>
+                            ${passed.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <p style="color: gray; font-size: 12px;">Highlight all text (Ctrl+A) and copy (Ctrl+C) to paste into Teams.</p>
+                </body>
+                </html>
+            `);
             win.document.close();
         }
     </script>
