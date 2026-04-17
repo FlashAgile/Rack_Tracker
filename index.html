@@ -10,8 +10,7 @@
         ::-webkit-calendar-picker-indicator { filter: invert(1); }
         [contenteditable]:focus { outline: 2px solid #3b82f6; background: #1e293b; border-radius: 4px; padding: 2px 4px; }
         #mainApp, #resetScreen { display: none; }
-        .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
-        .sort-header:hover { color: #60a5fa; }
+        .modal { transition: opacity 0.2s ease; display: none; }
         .wrap-col { width: 250px; max-width: 250px; white-space: normal; word-break: break-word; }
     </style>
 </head>
@@ -31,7 +30,7 @@
         </div>
     </div>
 
-    <div id="resetScreen" class="fixed inset-0 bg-gray-950 flex items-center justify-center z-[110]">
+    <div id="resetScreen" class="fixed inset-0 bg-gray-950 items-center justify-center z-[110]">
         <div class="bg-gray-900 p-10 rounded-2xl border border-emerald-500 shadow-2xl w-full max-w-md space-y-6">
             <h2 class="text-2xl font-bold text-white">Setup Your Account</h2>
             <p class="text-gray-400 text-sm">Update your temporary credentials to continue.</p>
@@ -66,6 +65,7 @@
                         <option value="import">Import File</option>
                         <option value="delete">Delete Rack</option>
                     </select>
+                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
                 </div>
             </div>
 
@@ -94,8 +94,9 @@
                 </div>
 
                 <div class="rounded-2xl overflow-hidden border border-orange-900/30">
-                    <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800">
+                    <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-orange-400">Racks Checked Out for Repair</h3>
+                        <span id="checkedOutCount" class="text-xs font-mono text-orange-300">0 Units</span>
                     </div>
                     <div class="bg-gray-900 overflow-x-auto">
                         <table class="w-full text-left text-sm">
@@ -105,8 +106,9 @@
                 </div>
 
                 <div class="rounded-2xl overflow-hidden border border-blue-900/30">
-                    <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800">
+                    <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                         <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
+                        <span id="passedCount" class="text-xs font-mono text-blue-300">0 Units</span>
                     </div>
                     <div class="bg-gray-900 overflow-x-auto">
                         <table class="w-full text-left text-sm">
@@ -123,49 +125,77 @@
         </div>
     </div>
 
+    <div id="rackModal" class="modal fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
+            <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Add Rack</h3>
+            <div class="space-y-4">
+                <div class="flex gap-2 p-1 bg-gray-800 rounded-lg">
+                    <button id="btnNew" onclick="toggleAddMode('new')" class="flex-1 py-2 rounded-md bg-blue-600 text-white text-sm font-bold">New</button>
+                    <button id="btnFromYesterday" onclick="toggleAddMode('yesterday')" class="flex-1 py-2 rounded-md text-gray-400 text-sm font-bold">From Yesterday</button>
+                </div>
+                <div id="yesterdaySelectGroup" class="hidden"><select id="yesterdayRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select></div>
+                <div id="newEntryFields" class="space-y-4">
+                    <input type="text" id="newRackSerial" placeholder="Rack Serial" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
+                    <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
+                </div>
+                <select id="newRackTest" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
+                    <option value="FRU">FRU</option><option value="IPU">IPU</option><option value="PR">PR</option>
+                    <option value="RUNIN">RUNIN</option><option value="RL12">RL12</option><option value="RML">RML</option><option value="RLT">RLT</option>
+                </select>
+                <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700">
+                <button onclick="confirmAddRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="checkoutModal" class="modal fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 space-y-6 relative">
+            <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500">✕</button>
+            <h3 class="text-2xl font-bold text-orange-400">Check Out for Repair</h3>
+            <select id="checkoutRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select>
+            <textarea id="checkoutReason" placeholder="Reason..." class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></textarea>
+            <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white">Confirm Checkout</button>
+        </div>
+    </div>
+
+    <div id="passModal" class="modal fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 space-y-6 relative">
+            <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500">✕</button>
+            <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
+            <select id="passRackSelector" class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></select>
+            <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg text-white border border-gray-700"></textarea>
+            <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
+        </div>
+    </div>
+
     <script>
-        // --- AUTH LOGIC ---
+        // --- AUTH & SETUP ---
         const savedAuth = JSON.parse(localStorage.getItem('customAuth'));
         const auth = savedAuth || { user: 'TempUser', pass: 'Reset123', isTemp: true };
         const adminAuth = { user: 'Admin', pass: '0122' };
-
-        let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        // Added FRU to stations
         const stations = ["FRU", "IPU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+        let addMode = 'new';
 
-        window.onload = function() {
-            if(localStorage.getItem('rememberMe') === 'true') enterApp();
-        };
+        window.onload = () => { if(localStorage.getItem('rememberMe') === 'true') enterApp(); };
 
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
-
-            if (u === adminAuth.user && p === adminAuth.pass) {
-                localStorage.setItem('rememberMe', 'true');
-                enterApp();
-            } else if (u === auth.user && p === auth.pass) {
-                if (auth.isTemp) {
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('resetScreen').style.display = 'flex';
-                } else {
-                    localStorage.setItem('rememberMe', 'true');
-                    enterApp();
-                }
-            } else {
-                alert("Invalid Credentials.");
-            }
+            if (u === adminAuth.user && p === adminAuth.pass) { localStorage.setItem('rememberMe', 'true'); enterApp(); }
+            else if (u === auth.user && p === auth.pass) {
+                if (auth.isTemp) { document.getElementById('loginScreen').style.display = 'none'; document.getElementById('resetScreen').style.display = 'flex'; }
+                else { localStorage.setItem('rememberMe', 'true'); enterApp(); }
+            } else alert("Invalid Credentials.");
         }
 
         function saveNewCredentials() {
             const newUser = document.getElementById('newUserInfo').value.trim();
             const newPass = document.getElementById('newPassInfo').value.trim();
-            if (!newUser || !newPass) return alert("Fill both fields.");
-            
+            if (!newUser || !newPass) return alert("Fill fields.");
             localStorage.setItem('customAuth', JSON.stringify({ user: newUser, pass: newPass, isTemp: false }));
-            alert("Account updated! Please login.");
-            location.reload();
+            alert("Account updated!"); location.reload();
         }
 
         function enterApp() {
@@ -177,72 +207,113 @@
 
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
 
-        // --- CORE TRACKER LOGIC ---
+        // --- TRACKER LOGIC ---
         const dInput = document.getElementById('dateFilter');
         dInput.value = new Date().toISOString().split('T')[0];
         dInput.addEventListener('change', loadAndDisplayReport);
 
-        function updateShiftNotes() {
+        function handleActionMenu(v) {
+            if(!v) return;
+            if(v === 'add') openAddModal();
+            if(v === 'pass') openPassModal();
+            if(v === 'checkout') openCheckoutModal();
+            if(v === 'export') exportForTeams();
+            if(v === 'delete') openDeleteModal();
+            document.getElementById('actionMenu').value = "";
+        }
+
+        function toggleModal(id) {
+            const m = document.getElementById(id);
+            m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function toggleAddMode(mode) {
+            addMode = mode;
+            document.getElementById('yesterdaySelectGroup').classList.toggle('hidden', mode === 'new');
+            document.getElementById('newEntryFields').classList.toggle('hidden', mode === 'yesterday');
+            if(mode === 'yesterday') populateYesterday();
+        }
+
+        function populateYesterday() {
+            const yest = new Date(dInput.value); yest.setDate(yest.getDate()-1);
+            const yKey = yest.toISOString().split('T')[0];
+            const racks = allRacks[yKey] || [];
+            document.getElementById('yesterdayRackSelector').innerHTML = racks.map(r => `<option value='${JSON.stringify(r)}'>${r.serial}</option>`).join('');
+        }
+
+        function confirmAddRack() {
+            let serial, location;
+            if(addMode === 'yesterday') {
+                const data = JSON.parse(document.getElementById('yesterdayRackSelector').value);
+                serial = data.serial; location = data.location;
+            } else {
+                serial = document.getElementById('newRackSerial').value;
+                location = document.getElementById('newRackLocation').value;
+            }
             const date = dInput.value;
-            // FILTER: Only active racks go into shift notes
-            const current = (allRacks[date] || []).filter(r => r.active === true);
-            
-            const categories = {
-                early: { label: "Early-stage testing", racks: [] },
-                slt: { label: "In SLT", racks: [] },
-                passed: { label: "Passed SLT", racks: [] }
-            };
+            if(!allRacks[date]) allRacks[date] = [];
+            allRacks[date].push({ id: Date.now(), serial, location, test: document.getElementById('newRackTest').value, checkedBy: document.getElementById('newRackCheckedBy').value, active: true, passed: false, checkedOut: false, issuesFound: '', actionTaken: '' });
+            sync(); toggleModal('rackModal');
+        }
 
+        function openPassModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('passRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('passModal');
+        }
+
+        function confirmPassRack() {
+            const id = parseInt(document.getElementById('passRackSelector').value);
+            const rack = allRacks[dInput.value].find(r => r.id === id);
+            if(rack) { Object.assign(rack, { active: false, passed: true, actionTaken: document.getElementById('passNotes').value }); sync(); toggleModal('passModal'); }
+        }
+
+        function openCheckoutModal() {
+            const act = (allRacks[dInput.value] || []).filter(r => r.active);
+            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${r.serial}</option>`).join('');
+            toggleModal('checkoutModal');
+        }
+
+        function confirmCheckout() {
+            const id = parseInt(document.getElementById('checkoutRackSelector').value);
+            const rack = allRacks[dInput.value].find(r => r.id === id);
+            if(rack) { Object.assign(rack, { active: false, checkedOut: true, issuesFound: document.getElementById('checkoutReason').value }); sync(); toggleModal('checkoutModal'); }
+        }
+
+        function updateShiftNotes() {
+            const current = (allRacks[dInput.value] || []).filter(r => r.active);
+            const cats = { early: [], slt: [], passed: [] };
             current.forEach(r => {
-                const t = r.test || "";
-                // FRU categorized in Early Testing
-                if (["FRU", "IPU", "PR"].includes(t)) categories.early.racks.push(r.serial);
-                else if (t === "RUNIN") categories.slt.racks.push(r.serial);
-                else if (["RL12", "RML", "RLT"].includes(t)) categories.passed.racks.push(r.serial);
+                if(["FRU", "IPU", "PR"].includes(r.test)) cats.early.push(r.serial);
+                else if(r.test === "RUNIN") cats.slt.push(r.serial);
+                else cats.passed.push(r.serial);
             });
-
-            let noteText = `SHIFT SUMMARY - ${date}\n\n`;
-            Object.values(categories).forEach(cat => {
-                noteText += `${cat.label} (${cat.racks.length}):\n${cat.racks.length > 0 ? `- ${cat.racks.join(', ')}` : "- None"}\n\n`;
-            });
-            document.getElementById('shiftNotes').value = noteText;
+            document.getElementById('shiftNotes').value = `SHIFT SUMMARY - ${dInput.value}\n\nEarly-stage (${cats.early.length}): ${cats.early.join(', ') || 'None'}\nIn SLT (${cats.slt.length}): ${cats.slt.join(', ') || 'None'}\nPassed SLT (${cats.passed.length}): ${cats.passed.join(', ') || 'None'}`;
         }
 
         function loadAndDisplayReport() {
             const date = dInput.value;
-            const aTbody = document.getElementById('activeTableBody');
-            const pTbody = document.getElementById('passedTableBody');
-            const cTbody = document.getElementById('checkedOutTableBody');
-            aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
-            
-            let current = [...(allRacks[date] || [])];
-            current.forEach(r => {
-                const testSelect = `<select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
-                
-                if(r.active) {
-                    aTbody.innerHTML += `<tr><td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${testSelect}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
-                } else if(r.passed) {
-                    pTbody.innerHTML += `<tr><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.test}</td><td class="px-6 py-4">PASSED</td></tr>`;
-                } else if(r.checkedOut) {
-                    cTbody.innerHTML += `<tr><td class="px-6 py-4 font-bold text-orange-400">${r.serial}</td><td class="px-6 py-4">${r.test}</td><td class="px-6 py-4">REPAIR</td></tr>`;
-                }
+            const aT = document.getElementById('activeTableBody');
+            const pT = document.getElementById('passedTableBody');
+            const cT = document.getElementById('checkedOutTableBody');
+            aT.innerHTML = ''; pT.innerHTML = ''; cT.innerHTML = '';
+            (allRacks[date] || []).forEach(r => {
+                const row = `<tr><td class="px-6 py-4">${date}</td><td class="px-6 py-4 font-bold text-blue-400">${r.serial}</td><td class="px-6 py-4">${r.test}</td><td class="px-6 py-4">${r.location}</td><td class="px-6 py-4">${r.issuesFound}</td><td class="px-6 py-4">${r.actionTaken}</td><td class="px-6 py-4">${r.checkedBy}</td></tr>`;
+                if(r.active) aT.innerHTML += row;
+                else if(r.passed) pT.innerHTML += row;
+                else if(r.checkedOut) cT.innerHTML += row;
             });
-            document.getElementById('activeCount').innerText = `${current.filter(r=>r.active).length} Units`;
             updateShiftNotes();
         }
 
-        function updateField(date, id, field, text) {
-            const rack = allRacks[date].find(r => r.id === id);
-            if (rack) { rack[field] = text; localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); updateShiftNotes(); }
-        }
-
-        function handleActionMenu(v) { if(v==='export') exportForTeams(); document.getElementById('actionMenu').value=""; }
+        function sync() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
 
         function exportForTeams() {
             const date = dInput.value;
+            const current = allRacks[date] || [];
             const notes = document.getElementById('shiftNotes').value;
             let win = window.open('', '_blank');
-            win.document.write(`<html><body style="font-family:sans-serif"><h1>EOS 1st Shift</h1><pre>${notes}</pre></body></html>`);
+            win.document.write(`<html><head><style>table{border-collapse:collapse;width:100%} th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>EOS 1st Shift - ${date}</h1><h3>Shift Notes</h3><pre>${notes}</pre><h3>Active Racks</h3><table><tr><th>Rack</th><th>Test</th><th>Location</th></tr>${current.filter(r=>r.active).map(r=>`<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td></tr>`).join('')}</table></body></html>`);
             win.document.close();
         }
     </script>
