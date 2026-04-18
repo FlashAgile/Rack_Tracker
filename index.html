@@ -49,7 +49,6 @@
                     <label class="text-sm font-medium text-gray-400">Select Date</label>
                     <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 </div>
-
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Action Menu</label>
                     <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold">
@@ -234,7 +233,7 @@
     </div>
 
     <script>
-        // Authentication logic
+        // Authentication Configuration
         const authKey = 'rackTrackerAuth';
         let auth = JSON.parse(localStorage.getItem(authKey)) || { user: 'Admin', pass: '0122' };
         const tempAuth = { user: 'TempUser', pass: '1234' };
@@ -359,7 +358,7 @@
             const date = dInput.value;
             const current = (allRacks[date] || []).filter(r => r.active === true);
             const categories = {
-                early: { label: "Early-stage testing", racks: [] },
+                early: { label: "Pre testing", racks: [] },
                 slt: { label: "In SLT", racks: [] },
                 passed: { label: "Passed SLT", racks: [] }
             };
@@ -500,8 +499,8 @@
                     <h2>SHIFT SUMMARY</h2>
                     <div class="notes">${notes}</div>
                     <h2>ACTIVE RACKS</h2>
-                    <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Issues Found</th><th>Checked By</th></tr></thead>
-                    <tbody>${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
+                    <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
+                    <tbody>${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken || ''}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
                     <h2>REPAIR/CHECKOUTS</h2>
                     <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Reason</th><th>Checked Out By</th></tr></thead>
                     <tbody>${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
