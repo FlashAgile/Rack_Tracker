@@ -475,9 +475,10 @@
             const date = dInput.value;
             const current = allRacks[date] || [];
             const notes = document.getElementById('shiftNotes').value;
-            const active = current.filter(r => r.active);
-            const repairs = current.filter(r => r.checkedOut);
-            const passed = current.filter(r => r.passed);
+            const sortByLocation = arr => [...arr].sort((a, b) => (a.location || '').localeCompare(b.location || ''));
+            const active = sortByLocation(current.filter(r => r.active));
+            const repairs = sortByLocation(current.filter(r => r.checkedOut));
+            const passed = sortByLocation(current.filter(r => r.passed));
             let win = window.open('', '_blank');
             win.document.write(`
                 <html>
