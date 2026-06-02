@@ -44,10 +44,14 @@
         </nav>
 
         <div class="max-w-[1600px] mx-auto space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Select Date</label>
                     <input type="date" id="dateFilter" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-gray-400">Daily Target Goal</label>
+                    <input type="number" id="goalInput" value="7" min="1" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-blue-500">
                 </div>
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Action Menu</label>
@@ -58,14 +62,11 @@
                         <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
                         <option value="checkout" class="bg-gray-900 text-orange-400">Check Out for Repair</option>
                         <option value="export" class="bg-gray-900 text-white">Export Teams Report</option>
-                        <option value="import" class="bg-gray-900 text-white">Import File</option>
                         <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
                     </select>
-                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
                 </div>
             </div>
 
-            <!-- Ready for Check-In Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-yellow-900/30">
                 <div class="bg-yellow-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-yellow-400">Ready for Check-In</h3>
@@ -86,7 +87,6 @@
                 </div>
             </div>
 
-            <!-- Active Racks Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
                 <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
@@ -110,7 +110,6 @@
                 </div>
             </div>
 
-            <!-- Checked Out for Repair Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-orange-900/30">
                 <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-orange-400">Racks Checked Out for Repair</h3>
@@ -132,7 +131,6 @@
                 </div>
             </div>
 
-            <!-- Passed Racks Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-blue-900/30">
                 <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
@@ -158,12 +156,11 @@
 
             <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
                 <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes (Auto-Generated)</h3>
-                <textarea id="shiftNotes" rows="8" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Notes will appear here..."></textarea>
+                <textarea id="shiftNotes" rows="11" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono leading-relaxed" placeholder="Notes will appear here..."></textarea>
             </div>
         </div>
     </div>
 
-    <!-- Ready for Check-In Modal -->
     <div id="checkinModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-yellow-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('checkinModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -178,7 +175,6 @@
         </div>
     </div>
 
-    <!-- Add Rack Modal -->
     <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -219,7 +215,6 @@
         </div>
     </div>
 
-    <!-- Checkout Modal -->
     <div id="checkoutModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -244,7 +239,6 @@
         </div>
     </div>
 
-    <!-- Delete Modal -->
     <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('deleteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -256,7 +250,6 @@
         </div>
     </div>
 
-    <!-- Pass Modal -->
     <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -282,21 +275,34 @@
     </div>
 
     <script>
-        // Authentication
+        // Authentication Configuration
         const authKey = 'rackTrackerAuth';
         let auth = JSON.parse(localStorage.getItem(authKey)) || { user: 'Admin', pass: '0122' };
         const tempAuth = { user: 'TempUser', pass: '1234' };
 
         let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        // checkinQueue is keyed by date, each entry: { id, serial, notes, addedBy }
         let checkinQueue = JSON.parse(localStorage.getItem('rackCheckinQueue')) || {};
         const stations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
         let addMode = 'new';
 
+        // Bind Setup Controls
+        const dInput = document.getElementById('dateFilter');
+        const goalInput = document.getElementById('goalInput');
+
         window.onload = function() {
             if(localStorage.getItem('rememberMe') === 'true') enterApp();
         };
+
+        // Initialize and Remember Goal Configurations
+        if (localStorage.getItem('rackTrackerDailyGoal')) {
+            goalInput.value = localStorage.getItem('rackTrackerDailyGoal');
+        }
+
+        goalInput.addEventListener('input', () => {
+            localStorage.setItem('rackTrackerDailyGoal', goalInput.value);
+            updateShiftNotes();
+        });
 
         function handleLogin() {
             const u = document.getElementById('userIn').value;
@@ -331,7 +337,6 @@
 
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
 
-        const dInput = document.getElementById('dateFilter');
         dInput.value = new Date().toISOString().split('T')[0];
         dInput.addEventListener('change', loadAndDisplayReport);
 
@@ -348,12 +353,11 @@
             if(value === 'pass') openPassModal();
             if(value === 'checkout') openCheckoutModal();
             if(value === 'export') exportForTeams();
-            if(value === 'import') document.getElementById('importFile').click();
             if(value === 'delete') openDeleteModal();
             document.getElementById('actionMenu').value = "";
         }
 
-        // ── Ready for Check-In ──────────────────────────────────────
+        // ── Ready for Check-In Pipeline ─────────────────────────────
         function openCheckinModal() {
             document.getElementById('checkinSerial').value = '';
             document.getElementById('checkinNotes').value = '';
@@ -405,7 +409,7 @@
             document.getElementById('checkinCount').innerText = `${queue.length} Units`;
         }
 
-        // ── Add Rack ────────────────────────────────────────────────
+        // ── Core Add Logic ──────────────────────────────────────────
         function openAddModal() { toggleAddMode('new'); toggleModal('rackModal'); }
 
         function toggleAddMode(mode) {
@@ -417,7 +421,6 @@
             const ciGroup = document.getElementById('checkinSelectGroup');
             const newGroup = document.getElementById('newEntryFields');
 
-            // Reset all buttons
             [btnNew, btnYest, btnCI].forEach(b => b.className = "flex-1 py-2 rounded-md text-gray-400 text-sm font-bold transition");
             [yestGroup, ciGroup, newGroup].forEach(g => g.classList.add('hidden'));
 
@@ -483,7 +486,6 @@
             if (!allRacks[date]) allRacks[date] = [];
             allRacks[date].push({ id: Date.now(), serial, location, test, checkedBy, active: true, passed: false, checkedOut: false, issuesFound: '', actionTaken: '' });
 
-            // Remove from check-in queue if it came from there
             if (checkinId && checkinQueue[date]) {
                 checkinQueue[date] = checkinQueue[date].filter(r => r.id !== checkinId);
                 localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
@@ -495,31 +497,26 @@
             document.getElementById('newRackLocation').value = '';
         }
 
+        // ── Automated Shift Notes Generator ────────────────────────
         function updateShiftNotes() {
             const date = dInput.value;
-            const current = (allRacks[date] || []).filter(r => r.active === true);
-            const categories = {
-                early: { label: "Pre testing", racks: [] },
-                slt: { label: "In SLT", racks: [] },
-                passed: { label: "Passed SLT", racks: [] }
-            };
-            current.forEach(r => {
-                const t = r.test || "";
-                if (["IPU", "FRU", "PR"].includes(t)) categories.early.racks.push(r.serial);
-                else if (t === "RUNIN") categories.slt.racks.push(r.serial);
-                else if (["RL12", "RML", "RLT"].includes(t)) categories.passed.racks.push(r.serial);
-            });
-            const queue = checkinQueue[date] || [];
-            let noteText = `SHIFT SUMMARY - ${date}\n\n`;
-            if (queue.length > 0) {
-                noteText += `Ready for Check-In (${queue.length}):\n- ${queue.map(r => r.serial).join(', ')}\n\n`;
-            }
-            Object.values(categories).forEach(cat => {
-                noteText += `${cat.label} (${cat.racks.length}):\n${cat.racks.length > 0 ? `- ${cat.racks.join(', ')}` : "- None"}\n\n`;
-            });
+            const baseRacks = allRacks[date] || [];
+            
+            const passedRacksCount = baseRacks.filter(r => r.passed === true).length;
+            const dailyGoal = parseInt(document.getElementById('goalInput').value) || 7;
+
+            let noteText = `SHIFT SUMMARY\n\n`;
+            noteText += `Total racks passed today: ${passedRacksCount} out of ${dailyGoal} for the daily goal.\n\n`;
+            noteText += `**ALL TECHS please, if you have to replace a cable, please ensure that you are routing the cable correctly back through all the Velcro straps to ensure OBA pass**\n\n`;
+            noteText += `***All Techs - Please, we need to have as many MGXs in SLT as possible in order for us to secure more output for the next day***\n\n`;
+            noteText += `Please remember to follow the correct procedure when ordering and obtaining cables/parts from DMR.\n\n`;
+            noteText += `As a reminder, TE would like us to use the new "generate DMR" tool to fill out our DMR information for better data analysis later on.\n\n`;
+            noteText += `If any tools are taken out of the supply closet, please make sure that they are returned to the closet or your lead.`;
+
             document.getElementById('shiftNotes').value = noteText;
         }
 
+        // ── UI Dashboard Render Engine ──────────────────────────────
         function loadAndDisplayReport() {
             const date = dInput.value;
             const aTbody = document.getElementById('activeTableBody');
@@ -614,65 +611,4 @@
             if (rack) { rack[field] = text.trim(); localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); updateShiftNotes(); }
         }
 
-        function syncAndRefresh() { localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks)); loadAndDisplayReport(); }
-
-        function importDatabase(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = e => { try { allRacks = JSON.parse(e.target.result).db || {}; syncAndRefresh(); alert('Imported.'); } catch (err) { alert('Invalid.'); } };
-                reader.readAsText(file);
-            }
-        }
-
-        function setSort(key) {
-            if (currentSort.key === key) currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
-            else { currentSort.key = key; currentSort.dir = 'asc'; }
-            loadAndDisplayReport();
-        }
-
-        function exportForTeams() {
-            const date = dInput.value;
-            const current = allRacks[date] || [];
-            const notes = document.getElementById('shiftNotes').value;
-            const queue = checkinQueue[date] || [];
-            const sortByLocation = arr => [...arr].sort((a, b) => (a.location || '').localeCompare(b.location || ''));
-            const active = sortByLocation(current.filter(r => r.active));
-            const repairs = sortByLocation(current.filter(r => r.checkedOut));
-            const passed = sortByLocation(current.filter(r => r.passed));
-            let win = window.open('', '_blank');
-            win.document.write(`
-                <html><head><title>EOS 1st Shift Report</title>
-                <style>
-                    body { font-family: sans-serif; padding: 20px; color: #333; }
-                    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
-                    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-                    th { background-color: #f2f2f2; font-weight: bold; }
-                    h1 { color: #2563eb; margin-bottom: 5px; }
-                    h2 { border-bottom: 2px solid #2563eb; padding-bottom: 5px; margin-top: 30px; }
-                    .notes { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; white-space: pre-wrap; font-family: monospace; }
-                    .checkin-row { background: #fefce8; }
-                </style></head><body>
-                <h1>EOS 1st Shift</h1>
-                <p><strong>Date:</strong> ${date}</p>
-                <h2>SHIFT SUMMARY</h2>
-                <div class="notes">${notes}</div>
-                ${queue.length > 0 ? `
-                <h2>READY FOR CHECK-IN</h2>
-                <table><thead><tr><th>Rack ID</th><th>Notes</th><th>Added By</th></tr></thead>
-                <tbody>${queue.map(r => `<tr class="checkin-row"><td>${r.serial}</td><td>${r.notes || ''}</td><td>${r.addedBy || ''}</td></tr>`).join('')}</tbody></table>` : ''}
-                <h2>ACTIVE RACKS</h2>
-                <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
-                <tbody>${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken || ''}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
-                <h2>REPAIR/CHECKOUTS</h2>
-                <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Reason</th><th>Checked Out By</th></tr></thead>
-                <tbody>${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
-                <h2>PASSED RACKS</h2>
-                <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Action Taken</th><th>Checked By</th></tr></thead>
-                <tbody>${passed.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
-                </body></html>`);
-            win.document.close();
-        }
-    </script>
-</body>
-</html>
+        function syncAndRefresh() { localStorage.setItem('
