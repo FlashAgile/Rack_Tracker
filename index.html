@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,6 +44,7 @@
         </nav>
 
         <div class="max-w-[1600px] mx-auto space-y-8">
+            <!-- Top control panel: Date | Daily Goal | Action Menu -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
                 <div class="space-y-2">
                     <label class="text-sm font-medium text-gray-400">Select Date</label>
@@ -73,6 +73,7 @@
                 </div>
             </div>
 
+            <!-- Ready for Check-In Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-yellow-900/30">
                 <div class="bg-yellow-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-yellow-400">Ready for Check-In</h3>
@@ -93,6 +94,7 @@
                 </div>
             </div>
 
+            <!-- Active Racks Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-emerald-900/30">
                 <div class="bg-emerald-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
@@ -116,6 +118,7 @@
                 </div>
             </div>
 
+            <!-- Checked Out for Repair Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-orange-900/30">
                 <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-orange-400">Racks Checked Out for Repair</h3>
@@ -137,6 +140,7 @@
                 </div>
             </div>
 
+            <!-- Passed Racks Table -->
             <div class="rounded-2xl overflow-hidden shadow-xl border border-blue-900/30">
                 <div class="bg-blue-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-blue-400">Passed Racks</h3>
@@ -167,12 +171,14 @@
         </div>
     </div>
 
+    <!-- Ready for Check-In Modal -->
     <div id="checkinModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-yellow-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('checkinModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-yellow-400">Ready for Check-In</h3>
             <p class="text-gray-400 text-sm">Enter the rack serial number to stage it for formal check-in.</p>
             <div class="space-y-4">
+                <!-- FIX #3: Open text input for serial number (not dropdown) -->
                 <input type="text" id="checkinSerial" placeholder="Rack Serial / ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
                 <input type="text" id="checkinNotes" placeholder="Notes (optional)" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
                 <input type="text" id="checkinAddedBy" placeholder="Added By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
@@ -181,6 +187,7 @@
         </div>
     </div>
 
+    <!-- Add Rack Modal -->
     <div id="rackModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('rackModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -200,6 +207,7 @@
                     <select id="checkinRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
                 </div>
                 <div id="newEntryFields" class="space-y-4">
+                    <!-- FIX #3: Open text inputs for serial and location -->
                     <input type="text" id="newRackSerial" placeholder="Rack Serial/ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                     <input type="text" id="newRackLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                 </div>
@@ -221,6 +229,7 @@
         </div>
     </div>
 
+    <!-- Checkout Modal -->
     <div id="checkoutModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-orange-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('checkoutModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -245,6 +254,7 @@
         </div>
     </div>
 
+    <!-- Delete Modal -->
     <div id="deleteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-red-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('deleteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -256,6 +266,7 @@
         </div>
     </div>
 
+    <!-- Pass Modal -->
     <div id="passModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-md p-8 rounded-2xl border border-blue-900/50 shadow-2xl space-y-6 relative">
             <button onclick="toggleModal('passModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
@@ -280,19 +291,23 @@
         </div>
     </div>
 
+    <!-- Paste Import Modal -->
     <div id="pasteModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
         <div class="bg-gray-900 w-full max-w-3xl p-8 rounded-2xl border border-green-900/50 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
             <button onclick="toggleModal('pasteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-green-400">Paste Import</h3>
-            <p class="text-gray-400 text-sm">Paste your text below. **The first row must be headers (e.g., Serial, Location, Test, Issues, Action, Checked By)**. Order does not matter!<br>
+            <p class="text-gray-400 text-sm">Paste your notepad text below. One rack per line.<br>
+                <span class="text-gray-600 font-mono text-xs">Expected order: Serial &nbsp;→&nbsp; Test Station &nbsp;→&nbsp; Location &nbsp;→&nbsp; Issues Found &nbsp;→&nbsp; Action Taken &nbsp;→&nbsp; Checked By</span>
             </p>
 
+            <!-- Step 1: Paste input -->
             <div id="pasteStep1" class="space-y-4">
-                <textarea id="pasteInput" rows="8" placeholder="Paste your notes here...&#10;e.g.&#10;Serial&#9;Location&#9;Test&#9;Issues Found&#9;Action Taken&#9;Checked By&#10;MGX1234&#9;Row 5&#9;IPU&#9;bad cable&#9;replaced cable&#9;Flash"
+                <textarea id="pasteInput" rows="8" placeholder="Paste your notes here...&#10;e.g.&#9;MGX1234&#9;IPU&#9;Row 5&#9;bad cable&#9;replaced cable&#9;Flash"
                     class="w-full bg-gray-950 p-4 rounded-lg border border-gray-700 text-white text-sm font-mono focus:outline-none focus:border-green-500 transition"></textarea>
                 <button onclick="parsePasteInput()" class="w-full bg-green-700 hover:bg-green-600 py-3 rounded-xl font-bold text-white transition">Parse &amp; Preview</button>
             </div>
 
+            <!-- Step 2: Preview table -->
             <div id="pasteStep2" class="hidden space-y-4">
                 <div class="flex items-center justify-between">
                     <p class="text-green-300 text-sm font-bold" id="pasteParseStatus"></p>
@@ -335,14 +350,18 @@
         const stations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
         let addMode = 'new';
 
+        // FIX #1: All initialization moved inside window.onload to prevent DOM-blocking crash
         window.onload = function () {
+            // Initialize date filter now that DOM is ready
             const dInput = document.getElementById('dateFilter');
             dInput.value = new Date().toISOString().split('T')[0];
             dInput.addEventListener('change', loadAndDisplayReport);
 
+            // Restore saved daily goal
             const savedGoal = localStorage.getItem('rackDailyGoal');
             if (savedGoal) document.getElementById('dailyGoal').value = savedGoal;
 
+            // Auto-login if remembered
             if (localStorage.getItem('rememberMe') === 'true') {
                 enterApp();
             }
@@ -426,10 +445,9 @@
             loadAndDisplayReport();
         }
 
-        // Fix type coercion safety in case strings sneak into deletion
         function removeFromCheckinQueue(date, id) {
             if (!checkinQueue[date]) return;
-            checkinQueue[date] = checkinQueue[date].filter(r => Number(r.id) !== Number(id));
+            checkinQueue[date] = checkinQueue[date].filter(r => r.id !== id);
             localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
             loadAndDisplayReport();
         }
@@ -520,9 +538,11 @@
                 const rackData = JSON.parse(decodeURIComponent(selectedData));
                 serial = rackData.serial; location = rackData.location;
             } else if (addMode === 'checkin') {
+                checkinId = parseInt(document.getElementById('checkinRackSelector').value);
+                // FIXED: Changed from parseInt to Number
                 checkinId = Number(document.getElementById('checkinRackSelector').value);
                 if (!checkinId) return alert("No rack selected from queue.");
-                const entry = (checkinQueue[date] || []).find(r => Number(r.id) === checkinId);
+                const entry = (checkinQueue[date] || []).find(r => r.id === checkinId);
                 if (!entry) return alert("Rack not found in queue.");
                 serial = entry.serial;
             } else {
@@ -539,7 +559,7 @@
             });
 
             if (checkinId && checkinQueue[date]) {
-                checkinQueue[date] = checkinQueue[date].filter(r => Number(r.id) !== checkinId);
+                checkinQueue[date] = checkinQueue[date].filter(r => r.id !== checkinId);
                 localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
             }
 
@@ -598,6 +618,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
                 const testSelect = `<select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
 
                 if (r.active) {
+                    // FIX #2: Secured contenteditable onblur handlers to use this.innerText explicitly
                     aTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
                         <td class="px-6 py-4 font-bold text-blue-400">
@@ -656,6 +677,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
             updateShiftNotes();
         }
 
+        // Helper to prevent XSS in contenteditable-rendered HTML
         function escapeHtml(str) {
             if (!str) return '';
             return String(str)
@@ -666,11 +688,13 @@ If any tools are taken out of the supply closet, please make sure that they are 
         }
 
         function confirmCheckout() {
+            const id = parseInt(document.getElementById('checkoutRackSelector').value);
+            // FIXED: Changed from parseInt to Number
             const id = Number(document.getElementById('checkoutRackSelector').value);
             const reason = document.getElementById('checkoutReason').value;
             const test = document.getElementById('checkoutTest').value;
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => Number(r.id) === id);
+            const idx = allRacks[date].findIndex(r => r.id === id);
             if (idx !== -1) {
                 Object.assign(allRacks[date][idx], { active: false, checkedOut: true, issuesFound: reason, test });
                 syncAndRefresh();
@@ -680,11 +704,13 @@ If any tools are taken out of the supply closet, please make sure that they are 
         }
 
         function confirmPassRack() {
+            const id = parseInt(document.getElementById('passRackSelector').value);
+            // FIXED: Changed from parseInt to Number
             const id = Number(document.getElementById('passRackSelector').value);
             const action = document.getElementById('passNotes').value;
             const test = document.getElementById('passTest').value;
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => Number(r.id) === id);
+            const idx = allRacks[date].findIndex(r => r.id === id);
             if (idx !== -1) {
                 Object.assign(allRacks[date][idx], { active: false, passed: true, actionTaken: action, test });
                 syncAndRefresh();
@@ -712,9 +738,11 @@ If any tools are taken out of the supply closet, please make sure that they are 
         }
 
         function confirmDeleteRack() {
+            const id = parseInt(document.getElementById('deleteRackSelector').value);
+            // FIXED: Changed from parseInt to Number
             const id = Number(document.getElementById('deleteRackSelector').value);
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => Number(r.id) === id);
+            const idx = allRacks[date].findIndex(r => r.id === id);
             if (idx !== -1) {
                 allRacks[date].splice(idx, 1);
                 syncAndRefresh();
@@ -724,7 +752,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
 
         function returnToActivePrompt(date, id, serial) {
             if (confirm(`Move Rack ${serial} back to Active?`)) {
-                const rack = allRacks[date].find(r => Number(r.id) === id);
+                const rack = allRacks[date].find(r => r.id === id);
                 if (rack) {
                     Object.assign(rack, { active: true, checkedOut: false, passed: false });
                     syncAndRefresh();
@@ -732,8 +760,9 @@ If any tools are taken out of the supply closet, please make sure that they are 
             }
         }
 
+        // Keep local database sync clean 
         function updateField(date, id, field, text) {
-            const rack = (allRacks[date] || []).find(r => Number(r.id) === id);
+            const rack = (allRacks[date] || []).find(r => r.id === id);
             if (rack) {
                 rack[field] = text.trim();
                 localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
@@ -741,7 +770,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
             }
         }
 
-        // ── Paste Import (UPGRADED: Order Agnostic Mapping) ──────────
+        // ── Paste Import ────────────────────────────────────────────
         let parsedPasteRows = [];
 
         function openPasteModal() {
@@ -761,68 +790,39 @@ If any tools are taken out of the supply closet, please make sure that they are 
             const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             parsedPasteRows = [];
 
-            if (lines.length < 2) {
-                return alert("Please ensure you include a Header line followed by data rows.");
-            }
-
-            // Parse the first line as headers
-            let headers = lines[0].split('\t').map(h => h.trim().toLowerCase());
-            if (headers.length < 2) {
-                headers = lines[0].split(/\s{2,}/).map(h => h.trim().toLowerCase());
-            }
-
-            // Dynamic Column Mapping Indices
-            let serialIdx = -1;
-            let testIdx = -1;
-            let locationIdx = -1;
-            let issuesIdx = -1;
-            let actionIdx = -1;
-            let checkedByIdx = -1;
-
-            headers.forEach((h, idx) => {
-                if (h.includes('serial') || h.includes('id') || h === 'rack') serialIdx = idx;
-                else if (h.includes('test') || h.includes('station') || h === 'test') testIdx = idx;
-                else if (h.includes('loc')) locationIdx = idx;
-                else if (h.includes('issue') || h.includes('reason') || h.includes('fault')) issuesIdx = idx;
-                else if (h.includes('action') || h.includes('fix') || h.includes('taken')) actionIdx = idx;
-                else if (h.includes('check') || h.includes('tech') || h.includes('by')) checkedByIdx = idx;
-            });
-
-            // Fallback safety if headers aren't matchable (use traditional indexes)
-            if (serialIdx === -1) serialIdx = 0;
-
-            // Process data lines (skip header row 0)
-            for (let i = 1; i < lines.length; i++) {
-                let parts = lines[i].split('\t').map(p => p.trim());
+            lines.forEach((line, idx) => {
+                // Split on tabs first; if only one token, fall back to 2+ spaces
+                let parts = line.split('\t').map(p => p.trim()).filter(p => p.length > 0);
                 if (parts.length < 2) {
-                    parts = lines[i].split(/\s{2,}/).map(p => p.trim());
+                    parts = line.split(/\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
                 }
-
-                const serial      = serialIdx !== -1 ? (parts[serialIdx] || '') : '';
-                let test          = testIdx !== -1 ? (parts[testIdx] || '').toUpperCase() : '';
-                const location    = locationIdx !== -1 ? (parts[locationIdx] || '') : '';
-                const issuesFound = issuesIdx !== -1 ? (parts[issuesIdx] || '') : '';
-                const actionTaken = actionIdx !== -1 ? (parts[actionTaken || ''] || '') : '';
-                const checkedBy   = checkedByIdx !== -1 ? (parts[checkedByIdx] || '') : '';
-
+                // Normalise test station: if first token isn't a known station but second is, swap
+                // Order: Serial → Test → Location → Issues → Action → CheckedBy
                 const knownStations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+                const serial      = parts[0] || '';
+                let   test        = (parts[1] || '').toUpperCase();
+                const location    = parts[2] || '';
+                const issuesFound = parts[3] || '';
+                const actionTaken = parts[4] || '';
+                const checkedBy   = parts[5] || '';
+
+                // If parsed test isn't a known station, keep the value but flag it
                 const testValid = knownStations.includes(test);
 
-                if (serial) {
-                    parsedPasteRows.push({
-                        rowNum: i,
-                        serial, test, testValid, location,
-                        issuesFound, actionTaken, checkedBy,
-                        include: true
-                    });
-                }
-            }
+                parsedPasteRows.push({
+                    rowNum: idx + 1,
+                    serial, test, testValid, location,
+                    issuesFound, actionTaken, checkedBy,
+                    include: true  // checkbox default
+                    include: true
+                });
+            });
 
             renderPastePreview();
             document.getElementById('pasteStep1').classList.add('hidden');
             document.getElementById('pasteStep2').classList.remove('hidden');
             document.getElementById('pasteParseStatus').innerText =
-                `${parsedPasteRows.length} data line${parsedPasteRows.length !== 1 ? 's' : ''} successfully mapped — review layout below.`;
+                `${parsedPasteRows.length} line${parsedPasteRows.length !== 1 ? 's' : ''} parsed — review before importing.`;
         }
 
         function renderPastePreview() {
@@ -887,7 +887,9 @@ If any tools are taken out of the supply closet, please make sure that they are 
                 const knownStations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
                 const safeTest = knownStations.includes(r.test) ? r.test : 'IPU';
                 
+                // FIXED: Using integers for cleaner indexing moving forward 
                 allRacks[date].push({
+                    id: Date.now() + Math.random(),
                     id: Date.now() + Math.floor(Math.random() * 1000),
                     serial: r.serial.trim(),
                     test: safeTest,
