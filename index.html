@@ -187,7 +187,7 @@
                 <textarea id="floorMapInput" rows="12" oninput="renderFloorMapResults()"
                     placeholder="Paste the raw floor-map text here..."
                     class="w-full bg-gray-950 p-4 rounded-lg border border-gray-700 text-white text-sm font-mono focus:outline-none focus:border-blue-500 transition"></textarea>
-                <p class="text-gray-400 text-sm">Paste the raw floor-map text. Only ZORA01 racks will be extracted automatically. Test Stage and Technician default to RLT and UNASSIGNED when they are not included in the pasted data.</p>
+                <p class="text-gray-400 text-sm">Paste the raw floor-map text. Only ZORA01 racks will be extracted automatically. Missing test stages are inferred from the test percentage; Technician defaults to UNASSIGNED.</p>
             </div>
             <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
@@ -301,13 +301,16 @@
                 <div class="space-y-2">
                     <label class="text-xs text-gray-500 uppercase">Initial Test Station</label>
                     <select id="newRackTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="IPU/PR">IPU/PR</option>
                         <option value="IPU">IPU</option>
                         <option value="FRU">FRU</option>
                         <option value="PR">PR</option>
                         <option value="RUNIN">RUNIN</option>
                         <option value="RL12">RL12</option>
                         <option value="RML">RML</option>
+                        <option value="DCT">DCT</option>
                         <option value="RLT">RLT</option>
+                        <option value="PASS">PASS</option>
                     </select>
                 </div>
                 <input type="text" id="newRackCheckedBy" placeholder="Checked By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
@@ -325,13 +328,16 @@
                 <div class="space-y-2">
                     <label class="text-xs text-gray-500 uppercase">Update Test Station</label>
                     <select id="checkoutTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                        <option value="IPU/PR">IPU/PR</option>
                         <option value="IPU">IPU</option>
                         <option value="FRU">FRU</option>
                         <option value="PR">PR</option>
                         <option value="RUNIN">RUNIN</option>
                         <option value="RL12">RL12</option>
                         <option value="RML">RML</option>
+                        <option value="DCT">DCT</option>
                         <option value="RLT">RLT</option>
+                        <option value="PASS">PASS</option>
                     </select>
                 </div>
                 <textarea id="checkoutReason" placeholder="Reason for Repair..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
@@ -362,7 +368,10 @@
                     <select id="passTest" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
                         <option value="RL12">RL12</option>
                         <option value="RML">RML</option>
+                        <option value="DCT">DCT</option>
                         <option value="RLT">RLT</option>
+                        <option value="PASS">PASS</option>
+                        <option value="IPU/PR">IPU/PR</option>
                         <option value="IPU">IPU</option>
                         <option value="FRU">FRU</option>
                         <option value="PR">PR</option>
@@ -430,7 +439,7 @@
         let checkinQueue = JSON.parse(localStorage.getItem('rackCheckinQueue')) || {};
         let techs = JSON.parse(localStorage.getItem('rackTrackerTechs')) || [];
         let floorMapAssignments = JSON.parse(localStorage.getItem('rackTrackerFloorMapAssignments')) || {};
-        const stations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+        const stations = ["IPU/PR", "IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "DCT", "RLT", "PASS"];
         let addMode = 'new';
         let floorMapExtractedRacks = [];
         let floorMapDraftAssignments = {};
@@ -594,6 +603,24 @@
             return Object.values(indexes).every(index => index >= 0) ? indexes : null;
         }
 
+        function floorMapStageForPercent(percent) {
+            const match = String(percent || '').trim().match(/^(\d+(?:\.\d+)?)\s*%?$/);
+            if (!match) return '';
+
+            const value = Number(match[1]);
+            if (value >= 0 && value < 23) return 'IPU/PR';
+            if (value >= 23 && value < 24) return 'RUNIN';
+            if (value >= 24 && value < 78) return 'RML';
+            if (value >= 78 && value < 83) return 'DCT';
+            if (value >= 83 && value < 100) return 'RLT';
+            if (value === 100) return 'PASS';
+            return '';
+        }
+
+        function floorMapTestStage(stage, percent) {
+            return floorMapStageForPercent(percent) || String(stage || '').trim().toUpperCase() || 'RLT';
+        }
+
         function renderFloorMapResults() {
             const raw = document.getElementById('floorMapInput').value;
             const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -605,13 +632,16 @@
             if (indexes) {
                 rows.slice(headerIndex + 1)
                     .filter(cells => cells.some(value => /\bZORA01\b/i.test(value)))
-                    .forEach(cells => extracted.push({
-                        location: cells[indexes.location] || '',
-                        serial: cells[indexes.serial] || '',
-                        stage: cells[indexes.stage] || '',
-                        percent: cells[indexes.percent] || '',
-                        technician: cells[indexes.technician] || ''
-                    }));
+                    .forEach(cells => {
+                        const percent = cells[indexes.percent] || '';
+                        extracted.push({
+                            location: cells[indexes.location] || '',
+                            serial: cells[indexes.serial] || '',
+                            stage: floorMapTestStage(cells[indexes.stage], percent),
+                            percent,
+                            technician: cells[indexes.technician] || ''
+                        });
+                    });
             } else {
                 lines.forEach((value, index) => {
                     if (!/^ZORA01$/i.test(value) || index < 3) return;
@@ -627,7 +657,7 @@
                     extracted.push({
                         location,
                         serial: `${serialPrefix}${serialSuffix}`,
-                        stage: 'RLT',
+                        stage: floorMapStageForPercent(percent) || 'RLT',
                         percent,
                         technician: 'UNASSIGNED'
                     });
@@ -637,11 +667,12 @@
                     rows.filter(cells => cells.some(value => /\bZORA01\b/i.test(value)))
                         .forEach(cells => {
                             const values = cells.filter(value => !/^ZORA01$/i.test(value));
+                            const percent = values[3] || '';
                             extracted.push({
                                 location: values[0] || '',
                                 serial: values[1] || '',
-                                stage: values[2] || '',
-                                percent: values[3] || '',
+                                stage: floorMapTestStage(values[2], percent),
+                                percent,
                                 technician: values[4] || ''
                             });
                         });
@@ -1199,7 +1230,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
                 if (parts.length < 2) {
                     parts = line.split(/\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
                 }
-                const knownStations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+                const knownStations = stations;
                 const serial      = parts[0] || '';
                 let   test        = (parts[1] || '').toUpperCase();
                 const location    = parts[2] || '';
@@ -1225,7 +1256,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
         }
 
         function renderPastePreview() {
-            const knownStations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+            const knownStations = stations;
             const tbody = document.getElementById('pastePreviewBody');
             tbody.innerHTML = '';
             parsedPasteRows.forEach((r, i) => {
@@ -1283,7 +1314,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
             let count = 0;
             parsedPasteRows.forEach(r => {
                 if (!r.include || !r.serial.trim()) return;
-                const knownStations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
+                const knownStations = stations;
                 const safeTest = knownStations.includes(r.test) ? r.test : 'IPU';
                 
                 // FIXED: Using integers for cleaner indexing moving forward 
