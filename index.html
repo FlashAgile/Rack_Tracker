@@ -43,6 +43,19 @@
             <button onclick="logout()" class="text-gray-500 hover:text-red-400 text-xs font-medium w-fit mt-1">Logout Account</button>
         </nav>
 
+        <div class="max-w-[1600px] mx-auto mb-6 flex gap-2 border-b border-gray-800" role="tablist" aria-label="Rack tracker views">
+            <button id="rackTrackerTabButton" type="button" role="tab" aria-selected="true" aria-controls="rackTrackerTab"
+                onclick="selectAppTab('rackTrackerTab')"
+                class="border-b-2 border-blue-500 px-4 py-3 text-sm font-bold text-blue-300">Rack Tracker</button>
+            <button id="floorMapTabButton" type="button" role="tab" aria-selected="false" aria-controls="floorMapTab"
+                onclick="selectAppTab('floorMapTab')"
+                class="border-b-2 border-transparent px-4 py-3 text-sm font-bold text-gray-400 hover:text-white">Floor Map</button>
+            <button id="techsTabButton" type="button" role="tab" aria-selected="false" aria-controls="techsTab"
+                onclick="selectAppTab('techsTab')"
+                class="border-b-2 border-transparent px-4 py-3 text-sm font-bold text-gray-400 hover:text-white">Techs</button>
+        </div>
+
+        <div id="rackTrackerTab" role="tabpanel" aria-labelledby="rackTrackerTabButton">
         <div class="max-w-[1600px] mx-auto space-y-8">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
                 <div class="space-y-2">
@@ -104,6 +117,7 @@
                                 <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
                                 <th class="px-6 py-3">Test</th>
+                                <th class="px-6 py-3">Test %</th>
                                 <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
@@ -114,6 +128,7 @@
                     </table>
                 </div>
             </div>
+            <p id="floorMapImportStatus" class="hidden text-sm text-green-300" role="status"></p>
 
             <div class="rounded-2xl overflow-hidden shadow-xl border border-orange-900/30">
                 <div class="bg-orange-900/20 px-6 py-4 border-b border-gray-800 flex justify-between items-center">
@@ -164,6 +179,87 @@
                 <textarea id="shiftNotes" rows="14" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Notes will appear here..."></textarea>
             </div>
         </div>
+        </div>
+
+        <section id="floorMapTab" class="hidden max-w-[1600px] mx-auto space-y-6" role="tabpanel" aria-labelledby="floorMapTabButton">
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+                <h2 class="text-xl font-bold text-blue-300">Floor Map Data</h2>
+                <textarea id="floorMapInput" rows="12" oninput="renderFloorMapResults()"
+                    placeholder="Paste the raw floor-map text here..."
+                    class="w-full bg-gray-950 p-4 rounded-lg border border-gray-700 text-white text-sm font-mono focus:outline-none focus:border-blue-500 transition"></textarea>
+                <p class="text-gray-400 text-sm">Paste the raw floor-map text. Only ZORA01 racks will be extracted automatically. Test Stage and Technician default to RLT and UNASSIGNED when they are not included in the pasted data.</p>
+            </div>
+            <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-800 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-200">ZORA01 Racks</h3>
+                    <span id="floorMapResultCount" class="text-xs font-mono text-gray-400">0 racks</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="px-4 py-3">Select</th>
+                                <th class="px-6 py-3">Location</th>
+                                <th class="px-6 py-3">Rack SN</th>
+                                <th class="px-6 py-3">Test Stage</th>
+                                <th class="px-6 py-3">Test %</th>
+                                <th class="px-6 py-3">Technician</th>
+                            </tr>
+                        </thead>
+                        <tbody id="floorMapResultsBody" class="divide-y divide-gray-800">
+                            <tr><td colspan="6" class="px-6 py-4 text-gray-500">Paste floor-map data to see matching racks.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex flex-col gap-3 border-t border-gray-800 p-4 sm:flex-row sm:items-center">
+                    <label for="bulkFloorMapTech" class="text-sm font-medium text-gray-300">Assign selected racks to</label>
+                    <select id="bulkFloorMapTech" onchange="updateFloorMapSaveButton()"
+                        class="bg-gray-800 border border-gray-700 rounded-lg p-2 text-sm text-white sm:w-64">
+                        <option value="">Choose a tech</option>
+                        <option value="UNASSIGNED">UNASSIGNED</option>
+                    </select>
+                    <button id="assignSelectedFloorMapRacksButton" type="button" onclick="assignFloorMapTechToSelected()" disabled
+                        class="rounded-xl bg-purple-700 px-5 py-3 font-bold text-white transition enabled:hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-40">
+                        Assign to Selected
+                    </button>
+                </div>
+                <div class="flex flex-col gap-3 border-t border-gray-800 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="space-y-1">
+                        <p id="floorMapAddStatus" class="text-sm text-gray-400" role="status">Extracted racks will be added to the selected date.</p>
+                        <p id="floorMapSaveStatus" class="text-sm text-gray-400" role="status">Select racks, assign technicians, and save before adding.</p>
+                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <button id="saveFloorMapAssignmentsButton" type="button" onclick="saveFloorMapAssignments()" disabled
+                            class="rounded-xl bg-emerald-700 px-5 py-3 font-bold text-white transition enabled:hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-40">
+                            Save Staged Assignments
+                        </button>
+                        <button id="addFloorMapRacksButton" type="button" onclick="addFloorMapRacksToTracker()" disabled
+                            class="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white transition enabled:hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+                            Add ZORA01 Racks to Active Racks
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="techsTab" class="hidden max-w-[1600px] mx-auto space-y-6" role="tabpanel" aria-labelledby="techsTabButton">
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
+                <h2 class="text-xl font-bold text-blue-300">Techs</h2>
+                <p class="text-sm text-gray-400">Add multiple technicians at once. Enter one name per line, or separate names with commas.</p>
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <textarea id="newTechName" rows="4" placeholder="Enter one tech per line, or separate names with commas"
+                        class="flex-1 bg-gray-950 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-blue-500"></textarea>
+                    <button type="button" onclick="addTech()" class="rounded-xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-500">Add Techs</button>
+                </div>
+                <p id="techsStatus" class="text-sm text-gray-400" role="status"></p>
+            </div>
+            <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-800">
+                    <h3 class="font-bold text-gray-200">Available Techs</h3>
+                </div>
+                <ul id="techsList" class="divide-y divide-gray-800"></ul>
+            </div>
+        </section>
     </div>
 
     <div id="checkinModal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity">
@@ -332,8 +428,12 @@
         let currentSort = { key: 'serial', dir: 'asc' };
         let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
         let checkinQueue = JSON.parse(localStorage.getItem('rackCheckinQueue')) || {};
+        let techs = JSON.parse(localStorage.getItem('rackTrackerTechs')) || [];
+        let floorMapAssignments = JSON.parse(localStorage.getItem('rackTrackerFloorMapAssignments')) || {};
         const stations = ["IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "RLT"];
         let addMode = 'new';
+        let floorMapExtractedRacks = [];
+        let floorMapDraftAssignments = {};
 
         window.onload = function () {
             const dInput = document.getElementById('dateFilter');
@@ -342,6 +442,10 @@
 
             const savedGoal = localStorage.getItem('rackDailyGoal');
             if (savedGoal) document.getElementById('dailyGoal').value = savedGoal;
+
+            renderTechs();
+            renderBulkFloorMapTechOptions();
+            renderFloorMapResults();
 
             if (localStorage.getItem('rememberMe') === 'true') {
                 enterApp();
@@ -383,7 +487,331 @@
             loadAndDisplayReport();
         }
 
+        function selectAppTab(tabId) {
+            const tabs = [
+                { id: 'rackTrackerTab', buttonId: 'rackTrackerTabButton' },
+                { id: 'floorMapTab', buttonId: 'floorMapTabButton' },
+                { id: 'techsTab', buttonId: 'techsTabButton' }
+            ];
+            tabs.forEach(tab => {
+                const selected = tab.id === tabId;
+                document.getElementById(tab.id).classList.toggle('hidden', !selected);
+                const button = document.getElementById(tab.buttonId);
+                button.setAttribute('aria-selected', String(selected));
+                button.className = `border-b-2 px-4 py-3 text-sm font-bold ${selected ? 'border-blue-500 text-blue-300' : 'border-transparent text-gray-400 hover:text-white'}`;
+            });
+        }
+
         function logout() { localStorage.removeItem('rememberMe'); location.reload(); }
+
+        function addTech() {
+            const input = document.getElementById('newTechName');
+            const names = input.value.split(/[\n,;]+/).map(name => name.trim()).filter(Boolean);
+            if (!names.length) {
+                document.getElementById('techsStatus').innerText = 'Enter a technician name to add.';
+                return;
+            }
+
+            const knownNames = new Set(techs.map(tech => tech.toUpperCase()));
+            let added = 0;
+            let skipped = 0;
+            names.forEach(name => {
+                const normalizedName = name.toUpperCase();
+                if (normalizedName === 'UNASSIGNED' || knownNames.has(normalizedName)) {
+                    skipped++;
+                    return;
+                }
+                techs.push(name);
+                knownNames.add(normalizedName);
+                added++;
+            });
+
+            if (added) {
+                localStorage.setItem('rackTrackerTechs', JSON.stringify(techs));
+                renderTechs();
+                renderBulkFloorMapTechOptions();
+                renderFloorMapAssignments();
+            }
+            input.value = '';
+            document.getElementById('techsStatus').innerText =
+                `${added} tech${added === 1 ? '' : 's'} added.${skipped ? ` ${skipped} duplicate or reserved name${skipped === 1 ? ' was' : 's were'} skipped.` : ''}`;
+        }
+
+        function deleteTech(index) {
+            if (index < 0 || index >= techs.length) return;
+            const [removedTech] = techs.splice(index, 1);
+            localStorage.setItem('rackTrackerTechs', JSON.stringify(techs));
+            document.getElementById('techsStatus').innerText =
+                `${removedTech} deleted. Existing rack assignments were not changed.`;
+            renderTechs();
+            renderBulkFloorMapTechOptions();
+            renderFloorMapAssignments();
+        }
+
+        function renderTechs() {
+            const list = document.getElementById('techsList');
+            const entries = ['UNASSIGNED', ...techs];
+            list.innerHTML = entries.length
+                ? entries.map((name, index) => `<li class="flex items-center justify-between px-6 py-4">
+                    <span class="${index === 0 ? 'text-gray-400' : 'text-white'}">${escapeHtml(name)}</span>
+                    ${index === 0
+                        ? '<span class="text-xs text-gray-500">Default</span>'
+                        : `<button type="button" onclick="deleteTech(${index - 1})" aria-label="Delete ${escapeHtml(name)}"
+                            class="rounded-lg px-3 py-1 text-sm font-bold text-red-400 hover:bg-red-900/30 hover:text-red-300">Delete</button>`}
+                </li>`).join('')
+                : '<li class="px-6 py-4 text-gray-500">No techs added.</li>';
+        }
+
+        function renderBulkFloorMapTechOptions() {
+            const select = document.getElementById('bulkFloorMapTech');
+            const selectedValue = select.value;
+            select.innerHTML = '<option value="">Choose a tech</option><option value="UNASSIGNED">UNASSIGNED</option>' +
+                techs.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+            if ([...select.options].some(option => option.value === selectedValue)) {
+                select.value = selectedValue;
+            }
+        }
+
+        function splitFloorMapRow(line) {
+            if (line.includes('\t')) return line.split('\t').map(value => value.trim());
+            if (line.includes(',')) return line.split(',').map(value => value.trim().replace(/^"|"$/g, ''));
+            return line.trim().split(/\s{2,}/).map(value => value.trim());
+        }
+
+        function floorMapHeaderIndexes(cells) {
+            const aliases = {
+                location: ['location', 'loc'],
+                serial: ['racksn', 'rackserial', 'serial', 'rackid'],
+                stage: ['teststage', 'teststation', 'stage'],
+                percent: ['test', 'test%', 'testpercent', 'testpct', 'completion', 'completionpercent', 'progress'],
+                technician: ['technician', 'tech', 'assignedto']
+            };
+            const normalized = cells.map(cell => cell.toLowerCase().replace(/[^a-z0-9%]/g, ''));
+            const indexes = {};
+            Object.entries(aliases).forEach(([field, names]) => {
+                indexes[field] = normalized.findIndex(name => names.includes(name));
+            });
+            return Object.values(indexes).every(index => index >= 0) ? indexes : null;
+        }
+
+        function renderFloorMapResults() {
+            const raw = document.getElementById('floorMapInput').value;
+            const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            const rows = lines.map(splitFloorMapRow);
+            const headerIndex = rows.findIndex(cells => floorMapHeaderIndexes(cells));
+            const indexes = headerIndex >= 0 ? floorMapHeaderIndexes(rows[headerIndex]) : null;
+            const extracted = [];
+
+            if (indexes) {
+                rows.slice(headerIndex + 1)
+                    .filter(cells => cells.some(value => /\bZORA01\b/i.test(value)))
+                    .forEach(cells => extracted.push({
+                        location: cells[indexes.location] || '',
+                        serial: cells[indexes.serial] || '',
+                        stage: cells[indexes.stage] || '',
+                        percent: cells[indexes.percent] || '',
+                        technician: cells[indexes.technician] || ''
+                    }));
+            } else {
+                lines.forEach((value, index) => {
+                    if (!/^ZORA01$/i.test(value) || index < 3) return;
+                    const location = lines[index - 3];
+                    const serialPrefix = lines[index - 2];
+                    const serialSuffix = lines[index - 1];
+                    const percent = lines[index + 1] || '';
+                    if (!/^[A-Z0-9-]+$/i.test(location) ||
+                        !/^[A-Z0-9]+$/i.test(serialPrefix) ||
+                        !/^\d+$/.test(serialSuffix) ||
+                        !/^\d+(?:\.\d+)?%$/.test(percent)) return;
+
+                    extracted.push({
+                        location,
+                        serial: `${serialPrefix}${serialSuffix}`,
+                        stage: 'RLT',
+                        percent,
+                        technician: 'UNASSIGNED'
+                    });
+                });
+
+                if (!extracted.length) {
+                    rows.filter(cells => cells.some(value => /\bZORA01\b/i.test(value)))
+                        .forEach(cells => {
+                            const values = cells.filter(value => !/^ZORA01$/i.test(value));
+                            extracted.push({
+                                location: values[0] || '',
+                                serial: values[1] || '',
+                                stage: values[2] || '',
+                                percent: values[3] || '',
+                                technician: values[4] || ''
+                            });
+                        });
+                }
+            }
+
+            floorMapExtractedRacks = extracted;
+            extracted.forEach(rack => {
+                const key = floorMapAssignmentKey(rack.serial);
+                if (!floorMapDraftAssignments[key]) {
+                    floorMapDraftAssignments[key] = {
+                        selected: false,
+                        pending: false,
+                        technician: floorMapAssignments[key] || rack.technician || 'UNASSIGNED'
+                    };
+                }
+            });
+            renderFloorMapAssignments();
+            document.getElementById('floorMapAddStatus').innerText = extracted.length
+                ? `${extracted.length} ZORA01 rack${extracted.length === 1 ? '' : 's'} ready to add to ${getDateInput().value}.`
+                : 'No ZORA01 racks to add.';
+            document.getElementById('floorMapResultCount').innerText =
+                `${extracted.length} rack${extracted.length === 1 ? '' : 's'}`;
+        }
+
+        function floorMapAssignmentKey(serial) {
+            return String(serial || '').trim().toUpperCase();
+        }
+
+        function renderFloorMapAssignments() {
+            const tbody = document.getElementById('floorMapResultsBody');
+            if (!floorMapExtractedRacks.length) {
+                const hasInput = document.getElementById('floorMapInput').value.trim().length > 0;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-gray-500">${hasInput ? 'No ZORA01 racks found.' : 'Paste floor-map data to see matching racks.'}</td></tr>`;
+                updateFloorMapSaveButton();
+                return;
+            }
+
+            tbody.innerHTML = floorMapExtractedRacks.map((rack, index) => {
+                const key = floorMapAssignmentKey(rack.serial);
+                const draft = floorMapDraftAssignments[key];
+                return `<tr>
+                    <td class="px-4 py-4 text-center">
+                        <input type="checkbox" aria-label="Select ${escapeHtml(rack.serial)} for technician assignment"
+                            ${draft.selected ? 'checked' : ''}
+                            onchange="updateFloorMapDraft(${index}, 'selected', this.checked)"
+                            class="accent-green-500 w-4 h-4 cursor-pointer">
+                    </td>
+                    <td class="px-6 py-4">${escapeHtml(rack.location)}</td>
+                    <td class="px-6 py-4 font-bold text-blue-300">${escapeHtml(rack.serial)}</td>
+                    <td class="px-6 py-4">${escapeHtml(rack.stage)}</td>
+                    <td class="px-6 py-4">${escapeHtml(rack.percent)}</td>
+                    <td class="px-6 py-4">${escapeHtml(draft.technician || 'UNASSIGNED')}${draft.pending ? '<span class="ml-2 text-xs text-yellow-400">UNSAVED</span>' : ''}</td>
+                </tr>`;
+            }).join('');
+            updateFloorMapSaveButton();
+        }
+
+        function updateFloorMapDraft(index, field, value) {
+            const rack = floorMapExtractedRacks[index];
+            if (!rack) return;
+            const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+            if (!draft || field !== 'selected') return;
+            draft[field] = value;
+            updateFloorMapSaveButton();
+        }
+
+        function updateFloorMapSaveButton() {
+            const selectedCount = floorMapExtractedRacks.filter(rack => {
+                const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+                return draft && draft.selected;
+            }).length;
+            const pendingCount = floorMapExtractedRacks.filter(rack => {
+                const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+                return draft && draft.pending;
+            }).length;
+            const bulkTech = document.getElementById('bulkFloorMapTech').value;
+            document.getElementById('assignSelectedFloorMapRacksButton').disabled = selectedCount === 0 || !bulkTech;
+            document.getElementById('saveFloorMapAssignmentsButton').disabled = pendingCount === 0;
+            document.getElementById('addFloorMapRacksButton').disabled =
+                floorMapExtractedRacks.length === 0 || selectedCount > 0 || pendingCount > 0;
+            document.getElementById('floorMapSaveStatus').innerText = pendingCount
+                ? `${pendingCount} rack assignment${pendingCount === 1 ? '' : 's'} staged; save before adding racks.${selectedCount ? ` ${selectedCount} more rack${selectedCount === 1 ? ' is' : 's are'} selected.` : ''}`
+                : selectedCount
+                    ? `${selectedCount} rack${selectedCount === 1 ? '' : 's'} selected. Assign this group to a tech, then select another group if needed.`
+                    : 'Select racks, assign each group to a tech, then save before adding.';
+        }
+
+        function assignFloorMapTechToSelected() {
+            const technician = document.getElementById('bulkFloorMapTech').value;
+            if (!technician) return;
+            let assigned = 0;
+            floorMapExtractedRacks.forEach(rack => {
+                const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+                if (!draft || !draft.selected) return;
+                draft.technician = technician;
+                draft.pending = true;
+                draft.selected = false;
+                assigned++;
+            });
+            if (!assigned) return;
+
+            document.getElementById('bulkFloorMapTech').value = '';
+            renderFloorMapAssignments();
+            document.getElementById('floorMapSaveStatus').innerText =
+                `${assigned} rack${assigned === 1 ? '' : 's'} staged for ${technician}. Select another group to assign a different tech, or save all staged assignments.`;
+        }
+
+        function saveFloorMapAssignments() {
+            let saved = 0;
+            floorMapExtractedRacks.forEach(rack => {
+                const key = floorMapAssignmentKey(rack.serial);
+                const draft = floorMapDraftAssignments[key];
+                if (!draft || !draft.pending) return;
+                floorMapAssignments[key] = draft.technician || 'UNASSIGNED';
+                draft.pending = false;
+                saved++;
+            });
+            if (!saved) return;
+
+            localStorage.setItem('rackTrackerFloorMapAssignments', JSON.stringify(floorMapAssignments));
+            renderFloorMapAssignments();
+            document.getElementById('floorMapSaveStatus').innerText =
+                `${saved} technician assignment${saved === 1 ? '' : 's'} saved. You can now add the racks to Active Racks.`;
+        }
+
+        function addFloorMapRacksToTracker() {
+            const date = getDateInput().value;
+            if (!date || floorMapExtractedRacks.length === 0) return;
+            if (!allRacks[date]) allRacks[date] = [];
+
+            const existingSerials = new Set(
+                allRacks[date].map(rack => String(rack.serial || '').trim().toUpperCase())
+            );
+            let added = 0;
+            let skipped = 0;
+
+            floorMapExtractedRacks.forEach(rack => {
+                const serial = String(rack.serial || '').trim();
+                if (!serial || existingSerials.has(serial.toUpperCase())) {
+                    skipped++;
+                    return;
+                }
+
+                let id = Date.now();
+                while (allRacks[date].some(existing => existing.id === id)) id++;
+                const test = String(rack.stage || 'RLT').trim().toUpperCase();
+                allRacks[date].push({
+                    id,
+                    serial,
+                    test: stations.includes(test) ? test : 'RLT',
+                    testPercent: String(rack.percent || '').trim(),
+                    location: String(rack.location || '').trim(),
+                    issuesFound: '',
+                    actionTaken: '',
+                    checkedBy: String(floorMapAssignments[floorMapAssignmentKey(rack.serial)] || rack.technician || 'UNASSIGNED').trim(),
+                    active: true,
+                    passed: false,
+                    checkedOut: false
+                });
+                existingSerials.add(serial.toUpperCase());
+                added++;
+            });
+
+            syncAndRefresh();
+            const status = document.getElementById('floorMapImportStatus');
+            status.innerText = `${added} ZORA01 rack${added === 1 ? '' : 's'} added to Active Racks for ${date}.${skipped ? ` ${skipped} duplicate or empty rack${skipped === 1 ? ' was' : 's were'} skipped.` : ''}`;
+            status.classList.remove('hidden');
+            selectAppTab('rackTrackerTab');
+        }
 
         function toggleModal(id) {
             const m = document.getElementById(id);
@@ -604,6 +1032,7 @@ If any tools are taken out of the supply closet, please make sure that they are 
                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText.trim())">${escapeHtml(r.serial)}</div>
                         </td>
                         <td class="px-6 py-4">${testSelect}</td>
+                        <td class="px-6 py-4">${escapeHtml(r.testPercent || '')}</td>
                         <td class="px-6 py-4">
                             <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
                         </td>
