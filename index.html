@@ -1016,20 +1016,15 @@
         function updateShiftNotes() {
             const date = getDateInput().value;
             const allForDate = allRacks[date] || [];
-            const totalCheckedOut = allForDate.filter(r => r.passed || r.checkedOut).length;
-            const goal = document.getElementById('dailyGoal').value.trim() || '?';
+            const totalPassed = allForDate.filter(r => r.passed).length;
+            const totalCheckedOutForRepair = allForDate.filter(r => r.checkedOut).length;
+            const totalActive = allForDate.filter(r => r.active).length;
 
             const noteText =
-`SHIFT SUMMARY
-Total racks checked out today: ${totalCheckedOut} out of ${goal} for the daily goal.
-
-**ALL TECHS please, if you have to replace a cable, please ensure that you are routing the cable correctly back through all the Velcro straps to ensure OBA pass**
-***All Techs - Please, we need to have as many MGXs in SLT as possible in order for us to secure more output for the next day***
-
-Please remember to follow the correct procedure when ordering and obtaining cables/parts from DMR.
-
-As a reminder, TE would like us to use the new "generate DMR" tool to fill out our DMR information for better data analysis later on.
-If any tools are taken out of the supply closet, please make sure that they are returned to the closet or your lead.`;
+`Total racks checked out today: ${totalPassed}
+Total racks checked out for Repair: ${totalCheckedOutForRepair}
+Total racks in test: ${totalActive}
+Total racks Ready for Check-In: ${ReadyForCheckinCount(any)}`;
 
             document.getElementById('shiftNotes').value = noteText;
         }
@@ -1169,35 +1164,17 @@ If any tools are taken out of the supply closet, please make sure that they are 
 
         function openDeleteModal() {
             const all = allRacks[getDateInput().value] || [];
-            document.getElementById('deleteRackSelector').innerHTML =
-                '<option value="" selected disabled>-- Select Rack --</option>' +
-                '<option value="all-active">Delete All Active Racks (selected date)</option>' +
-                all.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
+            document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
             toggleModal('deleteModal');
         }
 
         function confirmDeleteRack() {
-            const selectedRack = document.getElementById('deleteRackSelector').value;
-            if (!selectedRack) return;
+            // FIXED: Changed from parseInt to Number
+            const id = Number(document.getElementById('deleteRackSelector').value);
             const date = getDateInput().value;
-            const racks = allRacks[date] || [];
-            if (selectedRack === 'all-active') {
-                const activeCount = racks.filter(r => r.active).length;
-                if (!activeCount) {
-                    alert('There are no active racks to delete for this date.');
-                    return;
-                }
-                if (!confirm(`Delete all ${activeCount} active rack${activeCount === 1 ? '' : 's'} for ${date}? This cannot be undone.`)) return;
-                allRacks[date] = racks.filter(r => !r.active);
-                syncAndRefresh();
-                toggleModal('deleteModal');
-                return;
-            }
-
-            const id = Number(selectedRack);
-            const idx = racks.findIndex(r => r.id === id);
+            const idx = allRacks[date].findIndex(r => r.id === id);
             if (idx !== -1) {
-                racks.splice(idx, 1);
+                allRacks[date].splice(idx, 1);
                 syncAndRefresh();
                 toggleModal('deleteModal');
             }
