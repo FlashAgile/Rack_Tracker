@@ -95,6 +95,7 @@
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
                                 <th class="px-6 py-3">Rack ID</th>
+                                <th class="px-6 py-3">Location</th>
                                 <th class="px-6 py-3">Notes</th>
                                 <th class="px-6 py-3">Added By</th>
                                 <th class="px-6 py-3">Actions</th>
@@ -102,6 +103,36 @@
                         </thead>
                         <tbody id="checkinTableBody" class="divide-y divide-gray-800"></tbody>
                     </table>
+                </div>
+                <div class="space-y-4 border-t border-gray-800 bg-gray-900 p-4">
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-yellow-300">Add Multiple Racks</h4>
+                        <p class="text-sm text-gray-400">Paste one rack per line with the location and rack SN separated by a tab or comma.</p>
+                    </div>
+                    <textarea id="bulkCheckinInput" rows="5" oninput="previewBulkCheckinRacks()"
+                        placeholder="Location&#9;Rack SN&#10;Row 1&#9;MGX12345&#10;Row 2&#9;MGX67890"
+                        class="w-full rounded-lg border border-gray-700 bg-gray-950 p-3 font-mono text-sm text-white focus:outline-none focus:border-yellow-500"></textarea>
+                    <div class="overflow-x-auto rounded-lg border border-gray-800">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-gray-800 text-[11px] uppercase tracking-widest text-gray-400">
+                                <tr>
+                                    <th class="px-4 py-3">Select</th>
+                                    <th class="px-4 py-3">Location</th>
+                                    <th class="px-4 py-3">Rack SN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulkCheckinPreviewBody" class="divide-y divide-gray-800">
+                                <tr><td colspan="3" class="px-4 py-4 text-gray-500">Paste rack data to preview entries.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p id="bulkCheckinStatus" class="text-sm text-gray-400" role="status">Valid rows will be selected by default.</p>
+                        <button id="addBulkCheckinRacksButton" type="button" onclick="addBulkCheckinRacks()" disabled
+                            class="rounded-xl bg-yellow-600 px-5 py-3 font-bold text-white transition enabled:hover:bg-yellow-700 disabled:cursor-not-allowed disabled:opacity-40">
+                            Add Selected to Check-In
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -269,6 +300,7 @@
             <p class="text-gray-400 text-sm">Enter the rack serial number to stage it for formal check-in.</p>
             <div class="space-y-4">
                 <input type="text" id="checkinSerial" placeholder="Rack Serial / ID" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
+                <input type="text" id="checkinLocation" placeholder="Location" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
                 <input type="text" id="checkinNotes" placeholder="Notes (optional)" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
                 <input type="text" id="checkinAddedBy" placeholder="Added By" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white focus:outline-none focus:border-yellow-500">
                 <button onclick="confirmCheckin()" class="w-full bg-yellow-600 hover:bg-yellow-700 py-3 rounded-xl font-bold text-white transition">Add to Check-In Queue</button>
@@ -441,6 +473,7 @@
         let floorMapAssignments = JSON.parse(localStorage.getItem('rackTrackerFloorMapAssignments')) || {};
         const stations = ["IPU/PR", "IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "DCT", "RLT", "PASS"];
         let addMode = 'new';
+        let bulkCheckinRacks = [];
         let floorMapExtractedRacks = [];
         let floorMapDraftAssignments = {};
 
@@ -866,20 +899,113 @@
         // ── Ready for Check-In ─────────────────────────────────────
         function openCheckinModal() {
             document.getElementById('checkinSerial').value = '';
+            document.getElementById('checkinLocation').value = '';
             document.getElementById('checkinNotes').value = '';
             document.getElementById('checkinAddedBy').value = '';
             toggleModal('checkinModal');
             setTimeout(() => document.getElementById('checkinSerial').focus(), 100);
         }
 
+        function previewBulkCheckinRacks() {
+            const input = document.getElementById('bulkCheckinInput').value;
+            const lines = input.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            const parsed = lines.map((line, index) => {
+                const cells = line.includes('\t') ? line.split('\t') : line.split(',');
+                const [location = '', serial = ''] = cells.map(value => value.trim());
+                const isHeader = index === 0 && /location/i.test(location) && /rack|serial|sn/i.test(serial);
+                if (isHeader) return null;
+                if (cells.length !== 2 || !location || !serial) return { invalid: line };
+                return { location, serial, selected: true };
+            }).filter(Boolean);
+
+            bulkCheckinRacks = parsed.filter(rack => !rack.invalid);
+            const invalidCount = parsed.length - bulkCheckinRacks.length;
+            const tbody = document.getElementById('bulkCheckinPreviewBody');
+            if (!parsed.length) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-4 text-gray-500">Paste rack data to preview entries.</td></tr>';
+            } else {
+                tbody.innerHTML = parsed.map((rack, index) => rack.invalid
+                    ? `<tr><td class="px-4 py-3 text-red-400">Invalid</td><td colspan="2" class="px-4 py-3 text-red-300">${escapeHtml(rack.invalid)}</td></tr>`
+                    : `<tr>
+                        <td class="px-4 py-3 text-center">
+                            <input type="checkbox" aria-label="Select ${escapeHtml(rack.serial)}"
+                                ${rack.selected ? 'checked' : ''}
+                                onchange="bulkCheckinRacks[${bulkCheckinRacks.indexOf(rack)}].selected = this.checked; updateBulkCheckinStatus()"
+                                class="h-4 w-4 cursor-pointer accent-yellow-500">
+                        </td>
+                        <td class="px-4 py-3">${escapeHtml(rack.location)}</td>
+                        <td class="px-4 py-3 font-bold text-yellow-300">${escapeHtml(rack.serial)}</td>
+                    </tr>`
+                ).join('');
+            }
+
+            document.getElementById('addBulkCheckinRacksButton').disabled = !bulkCheckinRacks.some(rack => rack.selected);
+            document.getElementById('bulkCheckinStatus').innerText = invalidCount
+                ? `${bulkCheckinRacks.length} valid rack${bulkCheckinRacks.length === 1 ? '' : 's'} previewed; ${invalidCount} invalid row${invalidCount === 1 ? '' : 's'} skipped.`
+                : `${bulkCheckinRacks.length} rack${bulkCheckinRacks.length === 1 ? '' : 's'} previewed. Valid rows are selected by default.`;
+        }
+
+        function updateBulkCheckinStatus() {
+            const selectedCount = bulkCheckinRacks.filter(rack => rack.selected).length;
+            document.getElementById('addBulkCheckinRacksButton').disabled = selectedCount === 0;
+            document.getElementById('bulkCheckinStatus').innerText =
+                `${selectedCount} rack${selectedCount === 1 ? '' : 's'} selected to add.`;
+        }
+
+        function addBulkCheckinRacks() {
+            const date = getDateInput().value;
+            const selected = bulkCheckinRacks.filter(rack => rack.selected);
+            if (!date || selected.length === 0) return;
+            if (!checkinQueue[date]) checkinQueue[date] = [];
+
+            const existingSerials = new Set(
+                checkinQueue[date].map(rack => String(rack.serial || '').trim().toUpperCase())
+            );
+            let added = 0;
+            let skipped = 0;
+            selected.forEach(rack => {
+                const serialKey = rack.serial.trim().toUpperCase();
+                if (existingSerials.has(serialKey)) {
+                    skipped++;
+                    return;
+                }
+
+                let id = Date.now();
+                while (checkinQueue[date].some(existing => existing.id === id)) id++;
+                checkinQueue[date].push({
+                    id,
+                    serial: rack.serial.trim(),
+                    location: rack.location.trim(),
+                    notes: '',
+                    addedBy: ''
+                });
+                existingSerials.add(serialKey);
+                added++;
+            });
+
+            if (!added) {
+                document.getElementById('bulkCheckinStatus').innerText =
+                    `No racks added. ${skipped} duplicate serial${skipped === 1 ? '' : 's'} already exist in the queue.`;
+                return;
+            }
+
+            localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
+            document.getElementById('bulkCheckinInput').value = '';
+            previewBulkCheckinRacks();
+            document.getElementById('bulkCheckinStatus').innerText =
+                `${added} rack${added === 1 ? '' : 's'} added to the check-in queue.${skipped ? ` ${skipped} duplicate serial${skipped === 1 ? ' was' : 's were'} skipped.` : ''}`;
+            loadAndDisplayReport();
+        }
+
         function confirmCheckin() {
             const serial = document.getElementById('checkinSerial').value.trim();
+            const location = document.getElementById('checkinLocation').value.trim();
             const notes = document.getElementById('checkinNotes').value.trim();
             const addedBy = document.getElementById('checkinAddedBy').value.trim();
             if (!serial) return alert('Rack Serial is required.');
             const date = getDateInput().value;
             if (!checkinQueue[date]) checkinQueue[date] = [];
-            checkinQueue[date].push({ id: Date.now(), serial, notes, addedBy });
+            checkinQueue[date].push({ id: Date.now(), serial, location, notes, addedBy });
             localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
             toggleModal('checkinModal');
             loadAndDisplayReport();
@@ -892,22 +1018,60 @@
             loadAndDisplayReport();
         }
 
+        function addCheckinRackToActive(date, id) {
+            const queue = checkinQueue[date] || [];
+            const queueIndex = queue.findIndex(rack => rack.id === id);
+            if (queueIndex === -1) return;
+
+            const entry = queue[queueIndex];
+            const existingRacks = allRacks[date] || [];
+            const serialKey = String(entry.serial || '').trim().toUpperCase();
+            if (existingRacks.some(rack => String(rack.serial || '').trim().toUpperCase() === serialKey)) {
+                alert(`Rack ${entry.serial} is already in the rack tracker.`);
+                return;
+            }
+
+            if (!allRacks[date]) allRacks[date] = [];
+            let rackId = Date.now();
+            while (allRacks[date].some(rack => rack.id === rackId)) rackId++;
+            allRacks[date].push({
+                id: rackId,
+                serial: entry.serial,
+                location: entry.location || '',
+                test: 'IPU/PR',
+                checkedBy: entry.addedBy || '',
+                active: true,
+                passed: false,
+                checkedOut: false,
+                issuesFound: '',
+                actionTaken: ''
+            });
+
+            queue.splice(queueIndex, 1);
+            localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
+            syncAndRefresh();
+        }
+
         function renderCheckinTable() {
             const date = getDateInput().value;
             const queue = checkinQueue[date] || [];
             const tbody = document.getElementById('checkinTableBody');
             tbody.innerHTML = '';
             if (queue.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-6 text-center text-gray-600 text-sm italic">No racks staged for check-in</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-6 text-center text-gray-600 text-sm italic">No racks staged for check-in</td></tr>`;
             } else {
                 queue.forEach(r => {
                     tbody.innerHTML += `
                         <tr class="hover:bg-yellow-900/10 transition-colors">
-                            <td class="px-6 py-4 font-bold text-yellow-300">${r.serial}</td>
-                            <td class="px-6 py-4 text-gray-400">${r.notes || '--'}</td>
-                            <td class="px-6 py-4 text-gray-500">${r.addedBy || '--'}</td>
+                            <td class="px-6 py-4 font-bold text-yellow-300">${escapeHtml(r.serial)}</td>
+                            <td class="px-6 py-4 text-gray-400">${escapeHtml(r.location || '--')}</td>
+                            <td class="px-6 py-4 text-gray-400">${escapeHtml(r.notes || '--')}</td>
+                            <td class="px-6 py-4 text-gray-500">${escapeHtml(r.addedBy || '--')}</td>
                             <td class="px-6 py-4">
-                                <button onclick="removeFromCheckinQueue('${date}', ${r.id})" class="text-xs bg-red-900/40 hover:bg-red-700/60 text-red-400 px-3 py-1 rounded-lg border border-red-800/50 transition">Remove</button>
+                                <div class="flex gap-2">
+                                    <button onclick="addCheckinRackToActive('${date}', ${r.id})" class="text-xs bg-emerald-900/40 hover:bg-emerald-700/60 text-emerald-300 px-3 py-1 rounded-lg border border-emerald-800/50 transition">Add</button>
+                                    <button onclick="removeFromCheckinQueue('${date}', ${r.id})" class="text-xs bg-red-900/40 hover:bg-red-700/60 text-red-400 px-3 py-1 rounded-lg border border-red-800/50 transition">Remove</button>
+                                </div>
                             </td>
                         </tr>`;
                 });
@@ -962,7 +1126,7 @@
             const selector = document.getElementById('checkinRackSelector');
             selector.innerHTML = queue.length === 0
                 ? '<option value="">No racks in check-in queue</option>'
-                : queue.map(r => `<option value="${r.id}">${r.serial}${r.notes ? ' — ' + r.notes : ''}</option>`).join('');
+                : queue.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}${r.location ? ' — ' + escapeHtml(r.location) : ''}${r.notes ? ' — ' + escapeHtml(r.notes) : ''}</option>`).join('');
         }
 
         function confirmAddRack() {
@@ -984,6 +1148,7 @@
                 const entry = (checkinQueue[date] || []).find(r => r.id === checkinId);
                 if (!entry) return alert("Rack not found in queue.");
                 serial = entry.serial;
+                location = entry.location || '';
             } else {
                 serial = document.getElementById('newRackSerial').value.trim();
                 location = document.getElementById('newRackLocation').value.trim();
