@@ -1169,17 +1169,35 @@ If any tools are taken out of the supply closet, please make sure that they are 
 
         function openDeleteModal() {
             const all = allRacks[getDateInput().value] || [];
-            document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
+            document.getElementById('deleteRackSelector').innerHTML =
+                '<option value="" selected disabled>-- Select Rack --</option>' +
+                '<option value="all-active">Delete All Active Racks (selected date)</option>' +
+                all.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
             toggleModal('deleteModal');
         }
 
         function confirmDeleteRack() {
-            // FIXED: Changed from parseInt to Number
-            const id = Number(document.getElementById('deleteRackSelector').value);
+            const selectedRack = document.getElementById('deleteRackSelector').value;
+            if (!selectedRack) return;
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => r.id === id);
+            const racks = allRacks[date] || [];
+            if (selectedRack === 'all-active') {
+                const activeCount = racks.filter(r => r.active).length;
+                if (!activeCount) {
+                    alert('There are no active racks to delete for this date.');
+                    return;
+                }
+                if (!confirm(`Delete all ${activeCount} active rack${activeCount === 1 ? '' : 's'} for ${date}? This cannot be undone.`)) return;
+                allRacks[date] = racks.filter(r => !r.active);
+                syncAndRefresh();
+                toggleModal('deleteModal');
+                return;
+            }
+
+            const id = Number(selectedRack);
+            const idx = racks.findIndex(r => r.id === id);
             if (idx !== -1) {
-                allRacks[date].splice(idx, 1);
+                racks.splice(idx, 1);
                 syncAndRefresh();
                 toggleModal('deleteModal');
             }
