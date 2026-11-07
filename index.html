@@ -1019,12 +1019,13 @@
             const totalPassed = allForDate.filter(r => r.passed).length;
             const totalCheckedOutForRepair = allForDate.filter(r => r.checkedOut).length;
             const totalActive = allForDate.filter(r => r.active).length;
+            const totalReadyForCheckIn = (checkinQueue[date] || []).length;
 
             const noteText =
 `Total racks checked out today: ${totalPassed}
 Total racks checked out for Repair: ${totalCheckedOutForRepair}
 Total racks in test: ${totalActive}
-Total racks Ready for Check-In: ${ReadyForCheckinCount(any)}`;
+Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
 
             document.getElementById('shiftNotes').value = noteText;
         }
