@@ -13,9 +13,35 @@
         .sort-header { cursor: pointer; user-select: none; transition: color 0.2s; }
         .sort-header:hover { color: #60a5fa; }
         .wrap-col { width: 250px; max-width: 250px; white-space: normal; word-break: break-word; }
+        /* Rewritten: sticky table headers + larger floor touch targets + toast */
+        .table-scroll { max-height: 480px; overflow: auto; }
+        .table-scroll thead th { position: sticky; top: 0; background: #1f2937; z-index: 2; }
+        #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 200;
+                 display: none; max-width: 92vw; align-items: center; gap: 12px; }
+        #toast.show { display: flex; }
+        .action-btn { min-height: 48px; }
+        @media (max-width: 768px) {
+            .action-btn { min-height: 56px; font-size: 1rem; }
+            .table-scroll { max-height: 380px; }
+            body { padding: 12px !important; }
+        }
+        details.more-menu summary { cursor: pointer; }
+        details.more-menu summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="bg-gray-950 text-gray-100 font-sans p-6 md:p-10">
+    <div id="toast" role="status" class="bg-gray-800 border border-gray-600 text-white px-4 py-3 rounded-xl shadow-2xl">
+        <span id="toastMessage"></span>
+        <button id="toastAction" type="button" class="hidden font-bold text-blue-300 underline whitespace-nowrap" onclick="toastActionClick()">Undo</button>
+    </div>
+    <div id="dataWarning" class="hidden max-w-[1600px] mx-auto mb-6 bg-red-900/30 border border-red-700 rounded-2xl p-4 space-y-2" role="alert">
+        <p class="font-bold text-red-300">Saved data looked corrupt, so the app started empty to avoid crashing.</p>
+        <p class="text-sm text-gray-300" id="dataWarningDetail"></p>
+        <div class="flex gap-2 flex-wrap">
+            <button type="button" onclick="restoreBackupData()" class="rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white">Restore last backup</button>
+            <button type="button" onclick="dismissDataWarning()" class="rounded-lg bg-gray-700 px-4 py-2 font-bold text-gray-200">Keep empty data</button>
+        </div>
+    </div>
 
     <div id="loginScreen" class="fixed inset-0 bg-gray-950 flex items-center justify-center z-[100]">
         <div class="bg-gray-900 p-10 rounded-2xl border border-gray-800 shadow-2xl w-full max-w-md space-y-6">
@@ -23,16 +49,19 @@
                 <h1 class="text-3xl font-extrabold text-blue-400">Rack<span class="text-white"> Tracker</span></h1>
                 <p class="text-gray-500 text-sm mt-2">Authorized Access Only</p>
             </div>
-            <div id="loginFields" class="space-y-4">
-                <input type="text" id="userIn" placeholder="Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <input type="password" id="passIn" placeholder="Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <button onclick="handleLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Login</button>
-            </div>
+            <form id="loginFields" class="space-y-4" onsubmit="event.preventDefault(); handleLogin();">
+                <input type="text" id="userIn" placeholder="Username" autocomplete="username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="password" id="passIn" placeholder="Password" autocomplete="current-password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <p id="loginError" class="hidden text-sm font-bold text-red-400" role="alert"></p>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">Login</button>
+                <p class="text-center text-xs text-gray-500">Shared-device gate only — this is <span class="text-yellow-400 font-bold">not real security</span>. Anyone with this file can read the login. See CHANGES.md.</p>
+            </form>
             <div id="setupFields" class="hidden space-y-4">
                 <p class="text-orange-400 text-xs font-bold text-center">New User Detected: Set your permanent credentials.</p>
-                <input type="text" id="newUser" placeholder="New Username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
-                <input type="password" id="newPass" placeholder="New Password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white">
+                <input type="text" id="newUser" placeholder="New Username" autocomplete="username" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white" onkeydown="if(event.key==='Enter') saveNewCredentials()">
+                <input type="password" id="newPass" placeholder="New Password" autocomplete="new-password" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white" onkeydown="if(event.key==='Enter') saveNewCredentials()">
                 <button onclick="saveNewCredentials()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition">Create Account</button>
+                <p class="text-center text-xs text-gray-500">This replaces the single shared login on this browser only.</p>
             </div>
         </div>
     </div>
@@ -66,22 +95,41 @@
                     <label class="text-sm font-medium text-gray-400">Daily Goal <span class="text-gray-600 font-normal text-xs">(racks)</span></label>
                     <input type="number" id="dailyGoal" min="1" placeholder="e.g. 10"
                         class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white text-center font-bold text-lg focus:outline-none focus:border-emerald-500 transition"
-                        oninput="saveDailyGoal(); updateShiftNotes();">
+                        oninput="saveDailyGoal(); updateGoalProgress();">
+                    <div class="pt-1">
+                        <div class="flex justify-between text-xs text-gray-400"><span id="goalProgressText">Set a daily goal to track progress</span><span id="goalProgressCount"></span></div>
+                        <div class="h-2 bg-gray-800 rounded-full mt-1 overflow-hidden"><div id="goalProgressBar" class="h-full bg-emerald-500 rounded-full transition-all" style="width:0%"></div></div>
+                    </div>
                 </div>
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-gray-400">Action Menu</label>
-                    <select id="actionMenu" onchange="handleActionMenu(this.value)" class="w-full bg-purple-900/20 border border-purple-500/30 p-3 rounded-lg text-purple-300 font-bold">
-                        <option value="" class="bg-gray-900">-- Select Action --</option>
-                        <option value="checkin" class="bg-gray-900 text-yellow-400">Ready for CHECKIN</option>
-                        <option value="add" class="bg-gray-900 text-white">Add Rack</option>
-                        <option value="pass" class="bg-gray-900 text-white">Pass Rack</option>
-                        <option value="checkout" class="bg-gray-900 text-orange-400">Check Out for Repair</option>
-                        <option value="export" class="bg-gray-900 text-white">Export Teams Report</option>
-                        <option value="paste" class="bg-gray-900 text-green-400">Paste Import (Notepad)</option>
-                        <option value="import" class="bg-gray-900 text-white">Import File</option>
-                        <option value="delete" class="bg-gray-900 text-red-400">Delete Rack</option>
-                    </select>
-                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)">
+                    <label class="text-sm font-medium text-gray-400">Actions</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="handleActionMenu('add')" class="action-btn rounded-xl bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-500">+ Add Rack</button>
+                        <button type="button" onclick="handleActionMenu('checkin')" class="action-btn rounded-xl bg-yellow-600 px-4 py-3 font-bold text-white hover:bg-yellow-500">Check-In</button>
+                        <button type="button" onclick="handleActionMenu('pass')" class="action-btn rounded-xl bg-blue-500 px-4 py-3 font-bold text-white hover:bg-blue-400">Pass Rack</button>
+                        <button type="button" onclick="handleActionMenu('checkout')" class="action-btn rounded-xl bg-orange-600 px-4 py-3 font-bold text-white hover:bg-orange-500">Check Out</button>
+                    </div>
+                    <details class="more-menu rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2">
+                        <summary class="text-sm font-bold text-purple-300">More actions…</summary>
+                        <div class="grid grid-cols-2 gap-2 pt-3">
+                            <button type="button" onclick="handleActionMenu('export')" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-white hover:bg-gray-600">Export Teams Report</button>
+                            <button type="button" onclick="copyTeamsReport()" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-white hover:bg-gray-600">Copy Report</button>
+                            <button type="button" onclick="downloadTeamsReport()" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-white hover:bg-gray-600">Download Report</button>
+                            <button type="button" onclick="exportFullBackup()" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-white hover:bg-gray-600">Backup (JSON)</button>
+                            <button type="button" onclick="handleActionMenu('paste')" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-green-300 hover:bg-gray-600">Paste Import</button>
+                            <button type="button" onclick="handleActionMenu('import')" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-white hover:bg-gray-600">Import File</button>
+                            <button type="button" onclick="handleActionMenu('delete')" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-red-300 hover:bg-gray-600">Delete Rack</button>
+                        </div>
+                    </details>
+                    <input type="file" id="importFile" class="hidden" onchange="importDatabase(event)" accept=".json,application/json">
+                    <div id="importPreview" class="hidden rounded-lg border border-blue-700 bg-blue-900/20 p-3 space-y-2" role="status">
+                        <p id="importPreviewText" class="text-sm text-blue-200"></p>
+                        <div class="flex gap-2 flex-wrap">
+                            <button type="button" onclick="applyImport('merge')" class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white">Merge (keep existing)</button>
+                            <button type="button" onclick="applyImport('replace')" class="rounded-lg bg-red-700 px-3 py-2 text-sm font-bold text-white">Replace all data</button>
+                            <button type="button" onclick="cancelImport()" class="rounded-lg bg-gray-700 px-3 py-2 text-sm font-bold text-gray-200">Cancel</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -90,7 +138,7 @@
                     <h3 class="text-lg font-bold text-yellow-400">Ready for Check-In</h3>
                     <span id="checkinCount" class="text-xs font-mono bg-yellow-900/50 px-2 py-1 rounded border border-yellow-700 text-yellow-300">0 Units</span>
                 </div>
-                <div class="bg-gray-900 overflow-x-auto">
+                <div class="bg-gray-900 overflow-x-auto table-scroll">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
@@ -141,18 +189,34 @@
                     <h3 class="text-lg font-bold text-emerald-400">Active Racks</h3>
                     <span id="activeCount" class="text-xs font-mono bg-emerald-900/50 px-2 py-1 rounded border border-emerald-700 text-emerald-300">0 Units</span>
                 </div>
-                <div class="bg-gray-900 overflow-x-auto">
+                <div class="bg-gray-900 px-4 py-3 border-b border-gray-800 flex flex-col gap-2 md:flex-row md:items-center">
+                    <input type="search" id="activeSearch" placeholder="Search serial, location, or tech…" aria-label="Search active racks" oninput="loadAndDisplayReport()" class="flex-1 bg-gray-800 p-3 rounded-lg border border-gray-700 text-white min-h-[48px]">
+                    <select id="activeStationFilter" aria-label="Filter by test station" onchange="loadAndDisplayReport()" class="bg-gray-800 border border-gray-700 rounded-lg p-3 text-white min-h-[48px]">
+                        <option value="">All stations</option>
+                        <option value="IPU/PR">IPU/PR</option><option value="IPU">IPU</option><option value="FRU">FRU</option><option value="PR">PR</option><option value="RUNIN">RUNIN</option><option value="RL12">RL12</option><option value="RML">RML</option><option value="DCT">DCT</option><option value="RLT">RLT</option><option value="PASS">PASS</option>
+                    </select>
+                    <select id="activeTechFilter" aria-label="Filter by technician" onchange="loadAndDisplayReport()" class="bg-gray-800 border border-gray-700 rounded-lg p-3 text-white min-h-[48px]">
+                        <option value="">All techs</option>
+                    </select>
+                    <button type="button" onclick="clearActiveFilters()" class="rounded-lg bg-gray-700 px-4 py-3 text-sm font-bold text-gray-200 min-h-[48px]">Clear</button>
+                </div>
+                <div class="bg-gray-900 px-4 py-3 border-b border-gray-800 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <label for="scanInput" class="text-sm font-bold text-gray-300 whitespace-nowrap">Scan mode</label>
+                    <input type="text" id="scanInput" placeholder="Scan or type a serial, press Enter to add to Active" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); scanAddRack();}" class="flex-1 bg-gray-800 p-3 rounded-lg border border-gray-700 text-white min-h-[48px]">
+                    <button type="button" onclick="scanAddRack()" class="action-btn rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-500">Add scanned rack</button>
+                </div>
+                <div class="bg-gray-900 overflow-x-auto table-scroll">
                     <table class="w-full text-left">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="id" onclick="setSort('id')">Date ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="serial" onclick="setSort('serial')">Rack ID ↕</th>
                                 <th class="px-6 py-3">Test</th>
                                 <th class="px-6 py-3">Test %</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="location" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('checkedBy')">Checked By ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="checkedBy" onclick="setSort('checkedBy')">Checked By ↕</th>
                             </tr>
                         </thead>
                         <tbody id="activeTableBody" class="divide-y divide-gray-800 text-sm"></tbody>
@@ -170,9 +234,9 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="serial" onclick="setSort('serial')">Rack ↕</th>
                                 <th class="px-6 py-3">Test</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="location" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Reason</th>
                                 <th class="px-6 py-3">Checked Out By</th>
                             </tr>
@@ -191,10 +255,10 @@
                     <table class="w-full text-left text-sm">
                         <thead class="bg-gray-800 text-[11px] text-gray-400 uppercase tracking-widest">
                             <tr>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('id')">Date ↕</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('serial')">Rack ID ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="id" onclick="setSort('id')">Date ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="serial" onclick="setSort('serial')">Rack ID ↕</th>
                                 <th class="px-6 py-3">Test</th>
-                                <th class="px-6 py-3 sort-header" onclick="setSort('location')">Location ↕</th>
+                                <th class="px-6 py-3 sort-header" data-sort-key="location" onclick="setSort('location')">Location ↕</th>
                                 <th class="px-6 py-3 wrap-col">Issues Found</th>
                                 <th class="px-6 py-3">Action Taken</th>
                                 <th class="px-6 py-3">Checked By</th>
@@ -206,8 +270,15 @@
             </div>
 
             <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
-                <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes (Auto-Generated)</h3>
-                <textarea id="shiftNotes" rows="14" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Notes will appear here..."></textarea>
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 class="text-lg font-bold text-blue-400 uppercase tracking-wider text-sm">Shift Notes (Auto-Generated)</h3>
+                    <button type="button" onclick="regenerateShiftNotes()" class="rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-600">Regenerate notes</button>
+                </div>
+                <textarea id="shiftNotes" rows="14" readonly class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Notes will appear here..."></textarea>
+                <div class="space-y-2">
+                    <label for="extraNotes" class="text-sm font-medium text-gray-400">Extra Notes — yours, never overwritten by the auto-generator</label>
+                    <textarea id="extraNotes" rows="4" oninput="saveExtraNotes()" class="w-full bg-gray-950 p-4 rounded-lg border border-gray-800 text-white text-sm font-mono" placeholder="Type anything the auto-notes missed…"></textarea>
+                </div>
             </div>
         </div>
         </div>
@@ -215,6 +286,7 @@
         <section id="floorMapTab" class="hidden max-w-[1600px] mx-auto space-y-6" role="tabpanel" aria-labelledby="floorMapTabButton">
             <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl space-y-4">
                 <h2 class="text-xl font-bold text-blue-300">Floor Map Data</h2>
+                <p class="text-sm text-gray-300"><span class="font-bold text-blue-300">Step 1</span> Paste → <span class="font-bold text-blue-300">Step 2</span> Review &amp; assign (fix any stage below) → <span class="font-bold text-blue-300">Step 3</span> Add to Active Racks. You can add any time — only unsaved tech assignments block adding.</p>
                 <textarea id="floorMapInput" rows="12" oninput="renderFloorMapResults()"
                     placeholder="Paste the raw floor-map text here..."
                     class="w-full bg-gray-950 p-4 rounded-lg border border-gray-700 text-white text-sm font-mono focus:outline-none focus:border-blue-500 transition"></textarea>
@@ -232,7 +304,7 @@
                                 <th class="px-4 py-3">Select</th>
                                 <th class="px-6 py-3">Location</th>
                                 <th class="px-6 py-3">Rack SN</th>
-                                <th class="px-6 py-3">Test Stage</th>
+                                <th class="px-6 py-3">Test Stage (editable)</th>
                                 <th class="px-6 py-3">Test %</th>
                                 <th class="px-6 py-3">Technician</th>
                             </tr>
@@ -373,7 +445,7 @@
                     </select>
                 </div>
                 <textarea id="checkoutReason" placeholder="Reason for Repair..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
-                <button onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white">Confirm Checkout</button>
+                <button id="checkoutConfirmBtn" onclick="confirmCheckout()" class="w-full bg-orange-600 py-3 rounded-xl font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">Confirm Checkout</button>
             </div>
         </div>
     </div>
@@ -384,7 +456,7 @@
             <h3 class="text-2xl font-bold text-red-400">Delete Rack</h3>
             <div class="space-y-4">
                 <select id="deleteRackSelector" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
-                <button onclick="confirmDeleteRack()" class="w-full bg-red-600 py-3 rounded-xl font-bold text-white">Delete Rack</button>
+                <button id="deleteConfirmBtn" onclick="confirmDeleteRack()" class="w-full bg-red-600 py-3 rounded-xl font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">Delete Rack</button>
             </div>
         </div>
     </div>
@@ -395,7 +467,7 @@
             <h3 class="text-2xl font-bold text-blue-400">Pass Rack</h3>
             <div class="space-y-4">
                 <div class="space-y-2">
-                    <label for="passRackSelector" class="text-xs text-gray-500 uppercase">Rack Location</label>
+                    <label for="passRackSelector" class="text-xs text-gray-500 uppercase">Rack Serial</label>
                     <select id="passRackSelector" onchange="updatePassRackSerial()" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></select>
                 </div>
                 <div class="space-y-2">
@@ -419,7 +491,7 @@
                     </select>
                 </div>
                 <textarea id="passNotes" placeholder="Action Taken..." class="w-full bg-gray-800 p-3 rounded-lg border border-gray-700 text-white"></textarea>
-                <button onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white">Confirm Pass</button>
+                <button id="passConfirmBtn" onclick="confirmPassRack()" class="w-full bg-blue-600 py-3 rounded-xl font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed">Confirm Pass</button>
             </div>
         </div>
     </div>
@@ -428,7 +500,7 @@
         <div class="bg-gray-900 w-full max-w-3xl p-8 rounded-2xl border border-green-900/50 shadow-2xl space-y-6 relative max-h-[90vh] overflow-y-auto">
             <button onclick="toggleModal('pasteModal')" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
             <h3 class="text-2xl font-bold text-green-400">Paste Import</h3>
-            <p class="text-gray-400 text-sm">Paste your notepad text below. One rack per line.<br>
+            <p class="text-gray-400 text-sm">Paste your notepad text below. One rack per line. Use tabs or 2+ spaces between fields — single spaces will not split a line.<br>
                 <span class="text-gray-600 font-mono text-xs">Expected order: Serial &nbsp;→&nbsp; Test Station &nbsp;→&nbsp; Location &nbsp;→&nbsp; Issues Found &nbsp;→&nbsp; Action Taken &nbsp;→&nbsp; Checked By</span>
             </p>
 
@@ -470,15 +542,55 @@
 
     <script>
         // ── Authentication ────────────────────────────────────────────
+        // NOTE: this login is a shared-device gate only, NOT real security.
+        // The default Admin / 0122 and TempUser / 1234 values are kept so the
+        // existing first-run / setup flow still works, and are labelled as
+        // insecure in the login UI and in CHANGES.md. Obfuscating them would
+        // only pretend to be secure while risking the setup flow, so they
+        // are left readable on purpose. Real auth needs a server (see A1).
         const authKey = 'rackTrackerAuth';
-        let auth = JSON.parse(localStorage.getItem(authKey)) || { user: 'Admin', pass: '0122' };
+        // Q9: safe JSON loads — one corrupt key must not brick the whole app.
+        let corruptKeys = [];
+        function safeParse(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallback;
+            } catch (e) {
+                corruptKeys.push(key);
+                return fallback;
+            }
+        }
+        function localDateString(d) {
+            const x = d instanceof Date ? d : new Date();
+            const m = String(x.getMonth() + 1).padStart(2, '0');
+            const day = String(x.getDate()).padStart(2, '0');
+            return `${x.getFullYear()}-${m}-${day}`;
+        }
+        // M3: collision-free IDs. New IDs are strings; all lookups compare
+        // with String(...) so old numeric IDs in saved data keep working.
+        function newId() {
+            if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+            return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+        }
+        // M2: stage bands as a named config. VERIFY with the floor — the
+        // 23–24% RUNIN band is only 1% wide and looks like a guess.
+        const STAGE_BANDS = [
+            { min: 0,  max: 23,  stage: 'IPU/PR', note: '0–23%' },
+            { min: 23, max: 24,  stage: 'RUNIN',  note: '23–24% — 1% window, VERIFY with the floor' },
+            { min: 24, max: 78,  stage: 'RML',    note: '24–78%' },
+            { min: 78, max: 83,  stage: 'DCT',    note: '78–83%' },
+            { min: 83, max: 100, stage: 'RLT',    note: '83–100%' },
+            { min: 100, max: 101, stage: 'PASS',  note: '100%' }
+        ];
+        let auth = safeParse(authKey, { user: 'Admin', pass: '0122' });
         const tempAuth = { user: 'TempUser', pass: '1234' };
 
         let currentSort = { key: 'serial', dir: 'asc' };
-        let allRacks = JSON.parse(localStorage.getItem('rackTrackerDB')) || {};
-        let checkinQueue = JSON.parse(localStorage.getItem('rackCheckinQueue')) || {};
-        let techs = JSON.parse(localStorage.getItem('rackTrackerTechs')) || [];
-        let floorMapAssignments = JSON.parse(localStorage.getItem('rackTrackerFloorMapAssignments')) || {};
+        let allRacks = safeParse('rackTrackerDB', {});
+        let checkinQueue = safeParse('rackCheckinQueue', {});
+        let techs = safeParse('rackTrackerTechs', []);
+        let floorMapAssignments = safeParse('rackTrackerFloorMapAssignments', {});
+        let extraNotesByDate = safeParse('rackTrackerExtraNotes', {});
         const stations = ["IPU/PR", "IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "DCT", "RLT", "PASS"];
         let addMode = 'new';
         let bulkCheckinRacks = [];
@@ -487,8 +599,8 @@
 
         window.onload = function () {
             const dInput = document.getElementById('dateFilter');
-            dInput.value = new Date().toISOString().split('T')[0];
-            dInput.addEventListener('change', loadAndDisplayReport);
+            dInput.value = localDateString(); // local date, not UTC (was toISOString)
+            dInput.addEventListener('change', () => { loadExtraNotes(); loadAndDisplayReport(); });
 
             const savedGoal = localStorage.getItem('rackDailyGoal');
             if (savedGoal) document.getElementById('dailyGoal').value = savedGoal;
@@ -496,6 +608,17 @@
             renderTechs();
             renderBulkFloorMapTechOptions();
             renderFloorMapResults();
+            renderActiveTechFilter();
+            loadExtraNotes();
+            if (corruptKeys.length) {
+                document.getElementById('dataWarningDetail').textContent =
+                    'Unreadable keys: ' + corruptKeys.join(', ') + '. A backup is kept in this browser under rackTrackerDB.backup when an import is made.';
+                document.getElementById('dataWarning').classList.remove('hidden');
+            }
+            // Q10: Escape closes any open modal; Enter on the login screen submits.
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeAllModals();
+            });
 
             if (localStorage.getItem('rememberMe') === 'true') {
                 enterApp();
@@ -509,6 +632,7 @@
         function handleLogin() {
             const u = document.getElementById('userIn').value;
             const p = document.getElementById('passIn').value;
+            const err = document.getElementById('loginError');
             if (u === auth.user && p === auth.pass) {
                 localStorage.setItem('rememberMe', 'true');
                 enterApp();
@@ -516,24 +640,26 @@
                 document.getElementById('loginFields').classList.add('hidden');
                 document.getElementById('setupFields').classList.remove('hidden');
             } else {
-                alert("Invalid Credentials.");
+                err.textContent = 'Invalid credentials. Try again.';
+                err.classList.remove('hidden');
             }
         }
 
         function saveNewCredentials() {
             const u = document.getElementById('newUser').value.trim();
             const p = document.getElementById('newPass').value.trim();
-            if (!u || !p) return alert("Please provide both a username and password.");
+            if (!u || !p) { showToast('Please provide both a username and password.', 'error'); return; }
             auth = { user: u, pass: p };
             localStorage.setItem(authKey, JSON.stringify(auth));
             localStorage.setItem('rememberMe', 'true');
-            alert("Credentials saved! Logged in.");
+            showToast('Credentials saved — logged in.');
             enterApp();
         }
 
         function enterApp() {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
+            loadExtraNotes();
             loadAndDisplayReport();
         }
 
@@ -581,6 +707,7 @@
                 renderTechs();
                 renderBulkFloorMapTechOptions();
                 renderFloorMapAssignments();
+                renderActiveTechFilter();
             }
             input.value = '';
             document.getElementById('techsStatus').innerText =
@@ -596,6 +723,7 @@
             renderTechs();
             renderBulkFloorMapTechOptions();
             renderFloorMapAssignments();
+            renderActiveTechFilter();
         }
 
         function renderTechs() {
@@ -647,15 +775,9 @@
         function floorMapStageForPercent(percent) {
             const match = String(percent || '').trim().match(/^(\d+(?:\.\d+)?)\s*%?$/);
             if (!match) return '';
-
             const value = Number(match[1]);
-            if (value >= 0 && value < 23) return 'IPU/PR';
-            if (value >= 23 && value < 24) return 'RUNIN';
-            if (value >= 24 && value < 78) return 'RML';
-            if (value >= 78 && value < 83) return 'DCT';
-            if (value >= 83 && value < 100) return 'RLT';
-            if (value === 100) return 'PASS';
-            return '';
+            const band = STAGE_BANDS.find(b => value >= b.min && value < b.max);
+            return band ? band.stage : '';
         }
 
         function floorMapTestStage(stage, percent) {
@@ -727,8 +849,11 @@
                     floorMapDraftAssignments[key] = {
                         selected: false,
                         pending: false,
-                        technician: floorMapAssignments[key] || rack.technician || 'UNASSIGNED'
+                        technician: floorMapAssignments[key] || rack.technician || 'UNASSIGNED',
+                        stage: rack.stage
                     };
+                } else {
+                    floorMapDraftAssignments[key].stage = rack.stage;
                 }
             });
             renderFloorMapAssignments();
@@ -764,7 +889,7 @@
                     </td>
                     <td class="px-6 py-4">${escapeHtml(rack.location)}</td>
                     <td class="px-6 py-4 font-bold text-blue-300">${escapeHtml(rack.serial)}</td>
-                    <td class="px-6 py-4">${escapeHtml(rack.stage)}</td>
+                    <td class="px-6 py-4"><select aria-label="Test stage for ${escapeHtml(rack.serial)}" onchange="updateFloorMapDraft(${index}, 'stage', this.value)" class="bg-gray-800 border border-gray-700 rounded p-1 text-xs">${stations.map(s => `<option value="${s}" ${draft.stage === s ? 'selected' : ''}>${s}</option>`).join('')}</select>${draft.stage === 'RUNIN' ? ' <span class="text-xs text-yellow-400" title="23–24% is a 1% window — verify with the floor">⚠ 1% band</span>' : ''}</td>
                     <td class="px-6 py-4">${escapeHtml(rack.percent)}</td>
                     <td class="px-6 py-4">${escapeHtml(draft.technician || 'UNASSIGNED')}${draft.pending ? '<span class="ml-2 text-xs text-yellow-400">UNSAVED</span>' : ''}</td>
                 </tr>`;
@@ -776,8 +901,9 @@
             const rack = floorMapExtractedRacks[index];
             if (!rack) return;
             const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
-            if (!draft || field !== 'selected') return;
+            if (!draft || !['selected', 'stage'].includes(field)) return;
             draft[field] = value;
+            if (field === 'stage') rack.stage = value;
             updateFloorMapSaveButton();
         }
 
@@ -793,13 +919,16 @@
             const bulkTech = document.getElementById('bulkFloorMapTech').value;
             document.getElementById('assignSelectedFloorMapRacksButton').disabled = selectedCount === 0 || !bulkTech;
             document.getElementById('saveFloorMapAssignmentsButton').disabled = pendingCount === 0;
+            // M1: Add is blocked ONLY while tech assignments are unsaved.
+            // A selection alone never blocks it — selected racks just use
+            // their current technician when added.
             document.getElementById('addFloorMapRacksButton').disabled =
-                floorMapExtractedRacks.length === 0 || selectedCount > 0 || pendingCount > 0;
+                floorMapExtractedRacks.length === 0 || pendingCount > 0;
             document.getElementById('floorMapSaveStatus').innerText = pendingCount
-                ? `${pendingCount} rack assignment${pendingCount === 1 ? '' : 's'} staged; save before adding racks.${selectedCount ? ` ${selectedCount} more rack${selectedCount === 1 ? ' is' : 's are'} selected.` : ''}`
+                ? `${pendingCount} rack assignment${pendingCount === 1 ? '' : 's'} staged but not saved — save them first, then Add will unlock.`
                 : selectedCount
-                    ? `${selectedCount} rack${selectedCount === 1 ? '' : 's'} selected. Assign this group to a tech, then select another group if needed.`
-                    : 'Select racks, assign each group to a tech, then save before adding.';
+                    ? `${selectedCount} rack${selectedCount === 1 ? '' : 's'} selected. You can assign them to a tech, or just press Add — selected racks use their shown technician.`
+                    : 'Ready to add. Fix any stage above first, assign techs if you want, then press Add.';
         }
 
         function assignFloorMapTechToSelected() {
@@ -858,9 +987,9 @@
                     return;
                 }
 
-                let id = Date.now();
-                while (allRacks[date].some(existing => existing.id === id)) id++;
-                const test = String(rack.stage || 'RLT').trim().toUpperCase();
+                const id = newId();
+                const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+                const test = String((draft && draft.stage) || rack.stage || 'RLT').trim().toUpperCase();
                 allRacks[date].push({
                     id,
                     serial,
@@ -891,6 +1020,14 @@
             m.classList.toggle('pointer-events-none');
         }
 
+        function closeAllModals() {
+            ['checkinModal', 'rackModal', 'checkoutModal', 'deleteModal', 'passModal', 'pasteModal']
+                .forEach(id => {
+                    const m = document.getElementById(id);
+                    if (m) { m.classList.add('opacity-0'); m.classList.add('pointer-events-none'); }
+                });
+        }
+
         function handleActionMenu(value) {
             if (!value) return;
             if (value === 'checkin') openCheckinModal();
@@ -901,7 +1038,8 @@
             if (value === 'export') exportForTeams();
             if (value === 'import') document.getElementById('importFile').click();
             if (value === 'delete') openDeleteModal();
-            document.getElementById('actionMenu').value = "";
+            const menu = document.getElementById('actionMenu');
+            if (menu) menu.value = "";
         }
 
         // ── Ready for Check-In ─────────────────────────────────────
@@ -978,8 +1116,7 @@
                     return;
                 }
 
-                let id = Date.now();
-                while (checkinQueue[date].some(existing => existing.id === id)) id++;
+                const id = newId();
                 checkinQueue[date].push({
                     id,
                     serial: rack.serial.trim(),
@@ -1010,38 +1147,43 @@
             const location = document.getElementById('checkinLocation').value.trim();
             const notes = document.getElementById('checkinNotes').value.trim();
             const addedBy = document.getElementById('checkinAddedBy').value.trim();
-            if (!serial) return alert('Rack Serial is required.');
+            if (!serial) { showToast('Rack Serial is required.', 'error'); return; }
             const date = getDateInput().value;
             if (!checkinQueue[date]) checkinQueue[date] = [];
-            checkinQueue[date].push({ id: Date.now(), serial, location, notes, addedBy });
+            // Q5: duplicate check (same Set pattern as bulk check-in)
+            if (checkinQueue[date].some(r => String(r.serial || '').trim().toUpperCase() === serial.toUpperCase())) {
+                showToast(`Rack ${serial} is already in the check-in queue.`, 'error');
+                return;
+            }
+            checkinQueue[date].push({ id: newId(), serial, location, notes, addedBy });
             localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
             toggleModal('checkinModal');
+            showToast(`Rack ${serial} added to the check-in queue.`);
             loadAndDisplayReport();
         }
 
         function removeFromCheckinQueue(date, id) {
             if (!checkinQueue[date]) return;
-            checkinQueue[date] = checkinQueue[date].filter(r => r.id !== id);
+            checkinQueue[date] = checkinQueue[date].filter(r => String(r.id) !== String(id));
             localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
             loadAndDisplayReport();
         }
 
         function addCheckinRackToActive(date, id) {
             const queue = checkinQueue[date] || [];
-            const queueIndex = queue.findIndex(rack => rack.id === id);
+            const queueIndex = queue.findIndex(rack => String(rack.id) === String(id));
             if (queueIndex === -1) return;
 
             const entry = queue[queueIndex];
             const existingRacks = allRacks[date] || [];
             const serialKey = String(entry.serial || '').trim().toUpperCase();
             if (existingRacks.some(rack => String(rack.serial || '').trim().toUpperCase() === serialKey)) {
-                alert(`Rack ${entry.serial} is already in the rack tracker.`);
+                showToast(`Rack ${entry.serial} is already in the rack tracker.`, 'error');
                 return;
             }
 
             if (!allRacks[date]) allRacks[date] = [];
-            let rackId = Date.now();
-            while (allRacks[date].some(rack => rack.id === rackId)) rackId++;
+            const rackId = newId();
             allRacks[date].push({
                 id: rackId,
                 serial: entry.serial,
@@ -1077,8 +1219,8 @@
                             <td class="px-6 py-4 text-gray-500">${escapeHtml(r.addedBy || '--')}</td>
                             <td class="px-6 py-4">
                                 <div class="flex gap-2">
-                                    <button onclick="addCheckinRackToActive('${date}', ${r.id})" class="text-xs bg-emerald-900/40 hover:bg-emerald-700/60 text-emerald-300 px-3 py-1 rounded-lg border border-emerald-800/50 transition">Add</button>
-                                    <button onclick="removeFromCheckinQueue('${date}', ${r.id})" class="text-xs bg-red-900/40 hover:bg-red-700/60 text-red-400 px-3 py-1 rounded-lg border border-red-800/50 transition">Remove</button>
+                                    <button onclick="addCheckinRackToActive('${date}', '${r.id}')" class="text-xs bg-emerald-900/40 hover:bg-emerald-700/60 text-emerald-300 px-3 py-2 rounded-lg border border-emerald-800/50 transition min-h-[40px]">Add</button>
+                                    <button onclick="removeFromCheckinQueue('${date}', '${r.id}')" class="text-xs bg-red-900/40 hover:bg-red-700/60 text-red-400 px-3 py-2 rounded-lg border border-red-800/50 transition min-h-[40px]">Remove</button>
                                 </div>
                             </td>
                         </tr>`;
@@ -1117,10 +1259,10 @@
         }
 
         function populateYesterdayRacks() {
-            const today = new Date(getDateInput().value);
+            const today = new Date(getDateInput().value + 'T12:00:00');
             const yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
-            const yKey = yesterday.toISOString().split('T')[0];
+            const yKey = localDateString(yesterday);
             const yRacks = allRacks[yKey] || [];
             const selector = document.getElementById('yesterdayRackSelector');
             selector.innerHTML = yRacks.length === 0
@@ -1146,15 +1288,14 @@
 
             if (addMode === 'yesterday') {
                 const selectedData = document.getElementById('yesterdayRackSelector').value;
-                if (!selectedData) return alert("No rack selected.");
+                if (!selectedData) { showToast('No rack selected.', 'error'); return; }
                 const rackData = JSON.parse(decodeURIComponent(selectedData));
                 serial = rackData.serial; location = rackData.location;
             } else if (addMode === 'checkin') {
-                // FIXED: Changed from parseInt to Number
-                checkinId = Number(document.getElementById('checkinRackSelector').value);
-                if (!checkinId) return alert("No rack selected from queue.");
-                const entry = (checkinQueue[date] || []).find(r => r.id === checkinId);
-                if (!entry) return alert("Rack not found in queue.");
+                checkinId = String(document.getElementById('checkinRackSelector').value);
+                if (!checkinId) { showToast('No rack selected from queue.', 'error'); return; }
+                const entry = (checkinQueue[date] || []).find(r => String(r.id) === checkinId);
+                if (!entry) { showToast('Rack not found in queue.', 'error'); return; }
                 serial = entry.serial;
                 location = entry.location || '';
             } else {
@@ -1162,21 +1303,27 @@
                 location = document.getElementById('newRackLocation').value.trim();
             }
 
-            if (!serial) return alert('Rack Serial is required.');
+            if (!serial) { showToast('Rack Serial is required.', 'error'); return; }
             if (!allRacks[date]) allRacks[date] = [];
+            // Q5: duplicate check — warn instead of silently double-counting.
+            if (allRacks[date].some(r => String(r.serial || '').trim().toUpperCase() === serial.toUpperCase())) {
+                showToast(`Rack ${serial} is already on ${date}. Not added twice.`, 'error');
+                return;
+            }
             allRacks[date].push({
-                id: Date.now(), serial, location, test, checkedBy,
+                id: newId(), serial, location, test, checkedBy,
                 active: true, passed: false, checkedOut: false,
                 issuesFound: '', actionTaken: ''
             });
 
             if (checkinId && checkinQueue[date]) {
-                checkinQueue[date] = checkinQueue[date].filter(r => r.id !== checkinId);
+                checkinQueue[date] = checkinQueue[date].filter(r => String(r.id) !== String(checkinId));
                 localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
             }
 
             syncAndRefresh();
             toggleModal('rackModal');
+            showToast(`Rack ${serial} added to Active.`);
             document.getElementById('newRackSerial').value = '';
             document.getElementById('newRackLocation').value = '';
         }
@@ -1184,23 +1331,124 @@
         function saveDailyGoal() {
             const val = document.getElementById('dailyGoal').value.trim();
             localStorage.setItem('rackDailyGoal', val);
+            updateGoalProgress();
         }
 
-        function updateShiftNotes() {
+        // Q3: live goal progress — "Passed X / Y — Z to go" + bar.
+        function updateGoalProgress() {
+            const goal = parseInt(document.getElementById('dailyGoal').value, 10);
+            const date = getDateInput().value;
+            const passed = (allRacks[date] || []).filter(r => r.passed).length;
+            const text = document.getElementById('goalProgressText');
+            const count = document.getElementById('goalProgressCount');
+            const bar = document.getElementById('goalProgressBar');
+            if (!text || !bar) return;
+            if (!goal || goal <= 0) {
+                text.textContent = 'Set a daily goal to track progress';
+                count.textContent = passed ? `${passed} passed` : '';
+                bar.style.width = '0%';
+                return;
+            }
+            const remaining = Math.max(0, goal - passed);
+            text.textContent = passed >= goal
+                ? `Goal reached — ${passed} / ${goal} passed`
+                : `Passed ${passed} / ${goal} — ${remaining} to go`;
+            count.textContent = `${passed} / ${goal}`;
+            bar.style.width = Math.min(100, Math.round(passed / goal * 100)) + '%';
+        }
+
+        // Q2: the auto-notes box is now readonly, so regenerating it can
+        // never wipe manual notes — those live in Extra Notes (per date).
+        function buildShiftNotesText() {
             const date = getDateInput().value;
             const allForDate = allRacks[date] || [];
             const totalPassed = allForDate.filter(r => r.passed).length;
             const totalCheckedOutForRepair = allForDate.filter(r => r.checkedOut).length;
             const totalActive = allForDate.filter(r => r.active).length;
             const totalReadyForCheckIn = (checkinQueue[date] || []).length;
-
-            const noteText =
-`Total racks checked out today: ${totalPassed}
+            // M4: per-tech and per-station counts for the shift lead.
+            const byTech = {};
+            allForDate.filter(r => r.passed).forEach(r => {
+                const t = (r.checkedBy || 'UNASSIGNED').trim() || 'UNASSIGNED';
+                byTech[t] = (byTech[t] || 0) + 1;
+            });
+            const byStation = {};
+            allForDate.filter(r => r.active).forEach(r => {
+                const s = (r.test || '—').trim();
+                byStation[s] = (byStation[s] || 0) + 1;
+            });
+            const techLines = Object.entries(byTech).sort((a, b) => b[1] - a[1])
+                .map(([t, n]) => `  ${t}: ${n} passed`).join('\n') || '  (none yet)';
+            const stationLines = Object.entries(byStation).sort((a, b) => b[1] - a[1])
+                .map(([s, n]) => `  ${s}: ${n} active`).join('\n') || '  (none active)';
+            return `Total racks passed today: ${totalPassed}
 Total racks checked out for Repair: ${totalCheckedOutForRepair}
 Total racks in test: ${totalActive}
-Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
+Total racks Ready for Check-In: ${totalReadyForCheckIn}
 
-            document.getElementById('shiftNotes').value = noteText;
+Passed by tech:
+${techLines}
+
+Active by station:
+${stationLines}`;
+        }
+
+        function updateShiftNotes() {
+            document.getElementById('shiftNotes').value = buildShiftNotesText();
+            updateGoalProgress();
+        }
+
+        function regenerateShiftNotes() {
+            updateShiftNotes();
+            showToast('Shift notes regenerated.');
+        }
+
+        function saveExtraNotes() {
+            const date = getDateInput().value;
+            extraNotesByDate[date] = document.getElementById('extraNotes').value;
+            localStorage.setItem('rackTrackerExtraNotes', JSON.stringify(extraNotesByDate));
+        }
+
+        function loadExtraNotes() {
+            const el = document.getElementById('extraNotes');
+            if (el) el.value = extraNotesByDate[getDateInput().value] || '';
+        }
+
+        function matchesActiveFilter(r) {
+            const q = (document.getElementById('activeSearch')?.value || '').trim().toLowerCase();
+            const station = document.getElementById('activeStationFilter')?.value || '';
+            const tech = document.getElementById('activeTechFilter')?.value || '';
+            if (station && r.test !== station) return false;
+            if (tech && String(r.checkedBy || '').trim() !== tech) return false;
+            if (q) {
+                const hay = [r.serial, r.location, r.checkedBy, r.issuesFound].map(v => String(v || '').toLowerCase()).join(' ');
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        }
+
+        function clearActiveFilters() {
+            const s = document.getElementById('activeSearch'); if (s) s.value = '';
+            const st = document.getElementById('activeStationFilter'); if (st) st.value = '';
+            const t = document.getElementById('activeTechFilter'); if (t) t.value = '';
+            loadAndDisplayReport();
+        }
+
+        function renderActiveTechFilter() {
+            const sel = document.getElementById('activeTechFilter');
+            if (!sel) return;
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">All techs</option>' +
+                techs.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+            if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+        }
+
+        function updateSortIndicators() {
+            document.querySelectorAll('[data-sort-key]').forEach(th => {
+                const key = th.dataset.sortKey;
+                const label = { id: 'Date', serial: 'Rack ID', location: 'Location', checkedBy: 'Checked By' }[key] || key;
+                th.textContent = label + (currentSort.key === key ? (currentSort.dir === 'asc' ? ' ▲' : ' ▼') : ' ↕');
+            });
         }
 
         function loadAndDisplayReport() {
@@ -1209,6 +1457,7 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
             const pTbody = document.getElementById('passedTableBody');
             const cTbody = document.getElementById('checkedOutTableBody');
             aTbody.innerHTML = ''; pTbody.innerHTML = ''; cTbody.innerHTML = '';
+            updateSortIndicators();
 
             let current = [...(allRacks[date] || [])];
             current.sort((a, b) => {
@@ -1223,60 +1472,64 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
             });
 
             current.forEach(r => {
-                const testSelect = `<select onchange="updateField('${date}', ${r.id}, 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
+                const testSelect = `<select onchange="updateField('${date}', '${r.id}', 'test', this.value)" class="bg-gray-800 text-xs p-1 rounded border border-gray-700">${stations.map(s => `<option value="${s}" ${r.test === s ? 'selected' : ''}>${s}</option>`).join('')}</select>`;
 
                 if (r.active) {
+                    if (!matchesActiveFilter(r)) return;
                     aTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
                         <td class="px-6 py-4 font-bold text-blue-400">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'serial', this.innerText.trim())">${escapeHtml(r.serial)}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'serial', this.innerText.trim())">${escapeHtml(r.serial)}</div>
                         </td>
                         <td class="px-6 py-4">${testSelect}</td>
                         <td class="px-6 py-4">${escapeHtml(r.testPercent || '')}</td>
                         <td class="px-6 py-4">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
                         </td>
                         <td class="px-6 py-4 wrap-col">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText.trim())">${escapeHtml(r.issuesFound || '')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'issuesFound', this.innerText.trim())">${escapeHtml(r.issuesFound || '')}</div>
                         </td>
                         <td class="px-6 py-4">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'actionTaken', this.innerText.trim())">${escapeHtml(r.actionTaken || '')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'actionTaken', this.innerText.trim())">${escapeHtml(r.actionTaken || '')}</div>
                         </td>
                         <td class="px-6 py-4 text-gray-500">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText.trim())">${escapeHtml(r.checkedBy || '--')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'checkedBy', this.innerText.trim())">${escapeHtml(r.checkedBy || '--')}</div>
                         </td>
                     </tr>`;
                 } else if (r.passed) {
                     pTbody.innerHTML += `<tr>
                         <td class="px-6 py-4 text-gray-500 font-mono text-[10px]">${date}</td>
-                        <td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${escapeHtml(r.serial)}')">${escapeHtml(r.serial)}</td>
+                        <td class="px-6 py-4 font-bold text-blue-400 cursor-pointer" onclick="returnToActivePrompt('${date}', '${r.id}', '${escapeHtml(r.serial)}')">${escapeHtml(r.serial)}</td>
                         <td class="px-6 py-4 text-blue-300 font-bold">${r.test || '--'}</td>
                         <td class="px-6 py-4">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
                         </td>
                         <td class="px-6 py-4 wrap-col">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'issuesFound', this.innerText.trim())">${escapeHtml(r.issuesFound || '')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'issuesFound', this.innerText.trim())">${escapeHtml(r.issuesFound || '')}</div>
                         </td>
                         <td class="px-6 py-4">${escapeHtml(r.actionTaken || '')}</td>
                         <td class="px-6 py-4 text-gray-500">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText.trim())">${escapeHtml(r.checkedBy || '--')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'checkedBy', this.innerText.trim())">${escapeHtml(r.checkedBy || '--')}</div>
                         </td>
                     </tr>`;
                 } else if (r.checkedOut) {
                     cTbody.innerHTML += `<tr>
-                        <td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', ${r.id}, '${escapeHtml(r.serial)}')">${escapeHtml(r.serial)}</td>
+                        <td class="px-6 py-4 font-bold text-orange-400 cursor-pointer" onclick="returnToActivePrompt('${date}', '${r.id}', '${escapeHtml(r.serial)}')">${escapeHtml(r.serial)}</td>
                         <td class="px-6 py-4 text-orange-300 font-bold">${r.test || '--'}</td>
                         <td class="px-6 py-4">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
                         </td>
                         <td class="px-6 py-4 wrap-col">${escapeHtml(r.issuesFound || '')}</td>
                         <td class="px-6 py-4">
-                            <div contenteditable="true" onblur="updateField('${date}', ${r.id}, 'checkedBy', this.innerText.trim())">${escapeHtml(r.checkedBy || '--')}</div>
+                            <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'checkedBy', this.innerText.trim())">${escapeHtml(r.checkedBy || '--')}</div>
                         </td>
                     </tr>`;
                 }
             });
 
+            if (current.filter(r => r.active).length && !current.some(r => r.active && matchesActiveFilter(r))) {
+                aTbody.innerHTML = `<tr><td colspan="8" class="px-6 py-6 text-center text-gray-500 text-sm italic">No active racks match the search / filters. <button type="button" onclick="clearActiveFilters()" class="underline text-blue-300">Clear filters</button></td></tr>`;
+            }
             document.getElementById('activeCount').innerText = `${current.filter(r => r.active).length} Units`;
             document.getElementById('passedCount').innerText = `${current.filter(r => r.passed).length} Units`;
             document.getElementById('checkedOutCount').innerText = `${current.filter(r => r.checkedOut).length} Units`;
@@ -1295,12 +1548,11 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
         }
 
         function confirmCheckout() {
-            // FIXED: Changed from parseInt to Number
-            const id = Number(document.getElementById('checkoutRackSelector').value);
+            const id = String(document.getElementById('checkoutRackSelector').value);
             const reason = document.getElementById('checkoutReason').value;
             const test = document.getElementById('checkoutTest').value;
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => r.id === id);
+            const idx = (allRacks[date] || []).findIndex(r => String(r.id) === id);
             if (idx !== -1) {
                 Object.assign(allRacks[date][idx], { active: false, checkedOut: true, issuesFound: reason, test });
                 syncAndRefresh();
@@ -1310,12 +1562,11 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
         }
 
         function confirmPassRack() {
-            // FIXED: Changed from parseInt to Number
-            const id = Number(document.getElementById('passRackSelector').value);
+            const id = String(document.getElementById('passRackSelector').value);
             const action = document.getElementById('passNotes').value;
             const test = document.getElementById('passTest').value;
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => r.id === id);
+            const idx = (allRacks[date] || []).findIndex(r => String(r.id) === id);
             if (idx !== -1) {
                 Object.assign(allRacks[date][idx], { active: false, passed: true, actionTaken: action, test });
                 syncAndRefresh();
@@ -1326,47 +1577,87 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
 
         function openCheckoutModal() {
             const act = (allRacks[getDateInput().value] || []).filter(r => r.active);
-            document.getElementById('checkoutRackSelector').innerHTML = act.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
+            document.getElementById('checkoutRackSelector').innerHTML = act.length === 0
+                ? '<option value="">No active racks</option>'
+                : act.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
+            document.getElementById('checkoutConfirmBtn').disabled = act.length === 0;
             toggleModal('checkoutModal');
         }
 
         function openPassModal() {
             const act = (allRacks[getDateInput().value] || []).filter(r => r.active);
             const selector = document.getElementById('passRackSelector');
-            selector.innerHTML = '<option value="">-- Select Location --</option>' +
-                act.map(r => `<option value="${r.id}">${escapeHtml(r.location || '-- No Location --')}</option>`).join('');
+            // Q7: list by SERIAL (location is secondary text), so two racks
+            // in one location are no longer indistinguishable.
+            selector.innerHTML = act.length === 0
+                ? '<option value="">No active racks</option>'
+                : '<option value="">-- Select Rack --</option>' +
+                    act.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}${r.location ? ' — ' + escapeHtml(r.location) : ''}</option>`).join('');
             document.getElementById('passRackSerial').value = '';
+            document.getElementById('passConfirmBtn').disabled = act.length === 0;
             toggleModal('passModal');
         }
 
         function updatePassRackSerial() {
-            const id = Number(document.getElementById('passRackSelector').value);
+            const id = String(document.getElementById('passRackSelector').value);
             const date = getDateInput().value;
-            const rack = (allRacks[date] || []).find(r => r.id === id && r.active);
+            const rack = (allRacks[date] || []).find(r => String(r.id) === id && r.active);
             document.getElementById('passRackSerial').value = rack ? rack.serial : '';
         }
 
         function openDeleteModal() {
             const all = allRacks[getDateInput().value] || [];
-            document.getElementById('deleteRackSelector').innerHTML = all.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
+            document.getElementById('deleteRackSelector').innerHTML = all.length === 0
+                ? '<option value="">No racks on this date</option>'
+                : all.map(r => `<option value="${r.id}">${escapeHtml(r.serial)}</option>`).join('');
+            document.getElementById('deleteConfirmBtn').disabled = all.length === 0;
+            document.getElementById('deleteConfirmBtn').textContent = 'Delete Rack';
+            deleteArmed = false;
             toggleModal('deleteModal');
         }
 
+        let deleteArmed = false;
+        let lastDeleted = null; // { rack, date, index, timer }
         function confirmDeleteRack() {
-            // FIXED: Changed from parseInt to Number
-            const id = Number(document.getElementById('deleteRackSelector').value);
+            const id = String(document.getElementById('deleteRackSelector').value);
             const date = getDateInput().value;
-            const idx = allRacks[date].findIndex(r => r.id === id);
-            if (idx !== -1) {
-                allRacks[date].splice(idx, 1);
-                syncAndRefresh();
-                toggleModal('deleteModal');
+            const idx = (allRacks[date] || []).findIndex(r => String(r.id) === id);
+            if (idx === -1) return;
+            // Q6: first click arms, second click deletes. No silent deletes.
+            if (!deleteArmed) {
+                deleteArmed = true;
+                document.getElementById('deleteConfirmBtn').textContent = 'Click again to confirm delete';
+                setTimeout(() => {
+                    deleteArmed = false;
+                    const b = document.getElementById('deleteConfirmBtn');
+                    if (b) b.textContent = 'Delete Rack';
+                }, 5000);
+                return;
             }
+            deleteArmed = false;
+            const [removed] = allRacks[date].splice(idx, 1);
+            if (lastDeleted && lastDeleted.timer) clearTimeout(lastDeleted.timer);
+            lastDeleted = { rack: removed, date, index: idx,
+                timer: setTimeout(() => { lastDeleted = null; }, 30000) };
+            syncAndRefresh();
+            toggleModal('deleteModal');
+            showToast(`Deleted rack ${removed.serial}.`, 'warn', 'Undo', undoDelete);
+        }
+
+        function undoDelete() {
+            if (!lastDeleted) return;
+            const { rack, date, index } = lastDeleted;
+            if (!allRacks[date]) allRacks[date] = [];
+            allRacks[date].splice(Math.min(index, allRacks[date].length), 0, rack);
+            clearTimeout(lastDeleted.timer);
+            lastDeleted = null;
+            syncAndRefresh();
+            showToast(`Rack ${rack.serial} restored.`);
         }
 
         function returnToActivePrompt(date, id, serial) {
             if (confirm(`Move Rack ${serial} back to Active?`)) {
-                const rack = allRacks[date].find(r => r.id === id);
+                const rack = (allRacks[date] || []).find(r => String(r.id) === String(id));
                 if (rack) {
                     Object.assign(rack, { active: true, checkedOut: false, passed: false });
                     syncAndRefresh();
@@ -1376,9 +1667,15 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
 
         // Keep local database sync clean 
         function updateField(date, id, field, text) {
-            const rack = (allRacks[date] || []).find(r => r.id === id);
+            const rack = (allRacks[date] || []).find(r => String(r.id) === String(id));
             if (rack) {
-                rack[field] = text.trim();
+                const value = text.trim();
+                if (field === 'serial' && !value) {
+                    showToast('Serial cannot be blank — change reverted.', 'error');
+                    loadAndDisplayReport();
+                    return;
+                }
+                rack[field] = value;
                 localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
                 updateShiftNotes();
             }
@@ -1430,8 +1727,10 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
             renderPastePreview();
             document.getElementById('pasteStep1').classList.add('hidden');
             document.getElementById('pasteStep2').classList.remove('hidden');
+            const badRows = parsedPasteRows.filter(r => !r.testValid || !r.serial.trim());
             document.getElementById('pasteParseStatus').innerText =
-                `${parsedPasteRows.length} line${parsedPasteRows.length !== 1 ? 's' : ''} parsed — review before importing.`;
+                `${parsedPasteRows.length} line${parsedPasteRows.length !== 1 ? 's' : ''} parsed — review before importing.` +
+                (badRows.length ? ` Row${badRows.length === 1 ? '' : 's'} ${badRows.map(r => r.rowNum).join(', ')} need${badRows.length === 1 ? 's' : ''} a fix (bad/missing test station or serial).` : '');
         }
 
         function renderPastePreview() {
@@ -1490,15 +1789,20 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
         function confirmPasteImport() {
             const date = getDateInput().value;
             if (!allRacks[date]) allRacks[date] = [];
-            let count = 0;
+            const existingSerials = new Set(
+                allRacks[date].map(r => String(r.serial || '').trim().toUpperCase())
+            );
+            let count = 0, skipped = 0;
             parsedPasteRows.forEach(r => {
                 if (!r.include || !r.serial.trim()) return;
                 const knownStations = stations;
                 const safeTest = knownStations.includes(r.test) ? r.test : 'IPU';
-                
-                // FIXED: Using integers for cleaner indexing moving forward 
+                // Q5: duplicate check — warn, don't silently double-count.
+                const key = r.serial.trim().toUpperCase();
+                if (existingSerials.has(key)) { skipped++; return; }
+                existingSerials.add(key);
                 allRacks[date].push({
-                    id: Date.now() + Math.floor(Math.random() * 1000),
+                    id: newId(),
                     serial: r.serial.trim(),
                     test: safeTest,
                     location: r.location.trim(),
@@ -1511,7 +1815,69 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
             });
             syncAndRefresh();
             toggleModal('pasteModal');
-            alert(`✓ ${count} rack${count !== 1 ? 's' : ''} imported as Active.`);
+            showToast(`✓ ${count} rack${count !== 1 ? 's' : ''} imported as Active.` +
+                (skipped ? ` ${skipped} duplicate${skipped === 1 ? '' : 's'} skipped.` : ''));
+        }
+
+        // ── Toast / scan / backup helpers (Q6, Q10, M7) ───────────────
+        let toastTimer = null;
+        let toastActionFn = null;
+        function showToast(message, type, actionLabel, actionFn) {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toastMessage');
+            const btn = document.getElementById('toastAction');
+            msg.textContent = message;
+            toast.classList.remove('border-red-500', 'border-yellow-500');
+            if (type === 'error') toast.classList.add('border-red-500');
+            if (type === 'warn') toast.classList.add('border-yellow-500');
+            if (actionLabel && actionFn) {
+                btn.textContent = actionLabel;
+                btn.classList.remove('hidden');
+                toastActionFn = actionFn;
+            } else {
+                btn.classList.add('hidden');
+                toastActionFn = null;
+            }
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), actionFn ? 30000 : 5000);
+        }
+        function toastActionClick() {
+            document.getElementById('toast').classList.remove('show');
+            if (toastActionFn) { const fn = toastActionFn; toastActionFn = null; fn(); }
+        }
+        function dismissDataWarning() {
+            document.getElementById('dataWarning').classList.add('hidden');
+        }
+        function restoreBackupData() {
+            const backup = safeParse('rackTrackerDB.backup', null);
+            if (!backup) { showToast('No backup found in this browser.', 'error'); return; }
+            allRacks = backup;
+            localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
+            dismissDataWarning();
+            loadAndDisplayReport();
+            showToast('Backup restored.');
+        }
+        // M7: scan mode — scan/type a serial, Enter adds it to Active.
+        function scanAddRack() {
+            const input = document.getElementById('scanInput');
+            const serial = (input.value || '').trim();
+            if (!serial) { showToast('Scan or type a serial first.', 'error'); return; }
+            const date = getDateInput().value;
+            if (!allRacks[date]) allRacks[date] = [];
+            if (allRacks[date].some(r => String(r.serial || '').trim().toUpperCase() === serial.toUpperCase())) {
+                showToast(`Rack ${serial} is already on ${date}.`, 'error');
+                return;
+            }
+            allRacks[date].push({
+                id: newId(), serial, location: '', test: 'IPU/PR', testPercent: '',
+                issuesFound: '', actionTaken: '', checkedBy: '',
+                active: true, passed: false, checkedOut: false
+            });
+            input.value = '';
+            syncAndRefresh();
+            showToast(`Scanned rack ${serial} added to Active.`);
+            input.focus();
         }
 
         // ── Sync & Refresh ───────────────────────────────────────────
@@ -1520,21 +1886,94 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
             loadAndDisplayReport();
         }
 
+        let pendingImport = null;
         function importDatabase(event) {
             const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    try {
-                        allRacks = JSON.parse(e.target.result).db || {};
-                        syncAndRefresh();
-                        alert('Imported.');
-                    } catch (err) {
-                        alert('Invalid file.');
-                    }
-                };
-                reader.readAsText(file);
+            event.target.value = '';
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                let parsed;
+                try { parsed = JSON.parse(e.target.result); }
+                catch (err) { showToast('Invalid file — not valid JSON.', 'error'); return; }
+                // Accept both the old format ({db: {...}}) and the new full
+                // backup format ({format:'rack-tracker-backup', db, queue, ...}).
+                const db = parsed.db || (parsed.format === 'rack-tracker-backup' ? parsed.db : null);
+                if (!db || typeof db !== 'object') { showToast('Invalid file — no rack data found.', 'error'); return; }
+                const dayCount = Object.keys(db).length;
+                const rackCount = Object.values(db).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0);
+                const queueCount = parsed.queue ? Object.values(parsed.queue).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0) : 0;
+                pendingImport = parsed;
+                document.getElementById('importPreviewText').textContent =
+                    `File has ${rackCount} rack${rackCount === 1 ? '' : 's'} across ${dayCount} day${dayCount === 1 ? '' : 's'}` +
+                    (parsed.format === 'rack-tracker-backup' ? `, plus ${queueCount} queued rack${queueCount === 1 ? '' : 's'}, techs and assignments.` : ' (old format: racks only — queue, techs and assignments are not in this file).') +
+                    ' Merge keeps your current data; Replace overwrites everything (a backup is saved first).';
+                document.getElementById('importPreview').classList.remove('hidden');
+            };
+            reader.readAsText(file);
+        }
+
+        function cancelImport() {
+            pendingImport = null;
+            document.getElementById('importPreview').classList.add('hidden');
+        }
+
+        function applyImport(mode) {
+            if (!pendingImport) return;
+            // Q6: back up current data BEFORE any overwrite.
+            try { localStorage.setItem('rackTrackerDB.backup', JSON.stringify(allRacks)); } catch (e) { /* storage full — proceed, user was warned */ }
+            const incoming = pendingImport.db || {};
+            if (mode === 'replace') {
+                allRacks = incoming;
+                if (pendingImport.format === 'rack-tracker-backup') {
+                    checkinQueue = pendingImport.queue || {};
+                    techs = pendingImport.techs || [];
+                    floorMapAssignments = pendingImport.assignments || {};
+                    localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
+                    localStorage.setItem('rackTrackerTechs', JSON.stringify(techs));
+                    localStorage.setItem('rackTrackerFloorMapAssignments', JSON.stringify(floorMapAssignments));
+                    renderTechs(); renderBulkFloorMapTechOptions(); renderActiveTechFilter();
+                }
+                showToast('Import replaced all data. A backup was saved in this browser.');
+            } else {
+                let added = 0, skipped = 0;
+                Object.entries(incoming).forEach(([date, racks]) => {
+                    if (!allRacks[date]) allRacks[date] = [];
+                    const existing = new Set(allRacks[date].map(r => String(r.serial || '').trim().toUpperCase()));
+                    (racks || []).forEach(r => {
+                        const key = String(r.serial || '').trim().toUpperCase();
+                        if (!key || existing.has(key)) { skipped++; return; }
+                        existing.add(key);
+                        allRacks[date].push({ ...r, id: newId() });
+                        added++;
+                    });
+                });
+                showToast(`Merged ${added} rack${added === 1 ? '' : 's'}; ${skipped} duplicate${skipped === 1 ? '' : 's'} skipped.`);
             }
+            pendingImport = null;
+            document.getElementById('importPreview').classList.add('hidden');
+            syncAndRefresh();
+        }
+
+        // M5: real full backup — DB + queue + techs + assignments + goal.
+        function downloadFile(filename, text, mime) {
+            const blob = new Blob([text], { type: mime || 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function exportFullBackup() {
+            const payload = {
+                format: 'rack-tracker-backup', version: 1,
+                exportedAt: new Date().toISOString(),
+                db: allRacks, queue: checkinQueue, techs,
+                assignments: floorMapAssignments, goal: localStorage.getItem('rackDailyGoal') || ''
+            };
+            downloadFile(`rack-tracker-backup-${localDateString()}.json`, JSON.stringify(payload, null, 2));
+            showToast('Full backup downloaded (racks, queue, techs, assignments).');
         }
 
         function setSort(key) {
@@ -1543,17 +1982,19 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
             loadAndDisplayReport();
         }
 
-        function exportForTeams() {
+        // Q8: every value in the report is escaped with escapeHtml.
+        function buildTeamsReportHTML() {
             const date = getDateInput().value;
             const current = allRacks[date] || [];
             const notes = document.getElementById('shiftNotes').value;
+            const extra = (extraNotesByDate[date] || '').trim();
             const queue = checkinQueue[date] || [];
             const sortByLocation = arr => [...arr].sort((a, b) => (a.location || '').localeCompare(b.location || ''));
             const active = sortByLocation(current.filter(r => r.active));
             const repairs = sortByLocation(current.filter(r => r.checkedOut));
             const passed = sortByLocation(current.filter(r => r.passed));
-            let win = window.open('', '_blank');
-            win.document.write(`
+            const e = escapeHtml;
+            return `
                 <html><head><title>EOS 1st Shift Report</title>
                 <style>
                     body { font-family: sans-serif; padding: 20px; color: #333; }
@@ -1566,24 +2007,61 @@ Total racks Ready for Check-In: ${totalReadyForCheckIn}`;
                     .checkin-row { background: #fefce8; }
                 </style></head><body>
                 <h1>EOS 1st Shift</h1>
-                <p><strong>Date:</strong> ${date}</p>
+                <p><strong>Date:</strong> ${e(date)}</p>
                 <h2>SHIFT SUMMARY</h2>
-                <div class="notes">${notes}</div>
+                <div class="notes">${e(notes)}</div>
+                ${extra ? `<h2>EXTRA NOTES</h2><div class="notes">${e(extra)}</div>` : ''}
                 ${queue.length > 0 ? `
                 <h2>READY FOR CHECK-IN</h2>
                 <table><thead><tr><th>Rack ID</th><th>Notes</th><th>Added By</th></tr></thead>
-                <tbody>${queue.map(r => `<tr class="checkin-row"><td>${r.serial}</td><td>${r.notes || ''}</td><td>${r.addedBy || ''}</td></tr>`).join('')}</tbody></table>` : ''}
+                <tbody>${queue.map(r => `<tr class="checkin-row"><td>${e(r.serial)}</td><td>${e(r.notes || '')}</td><td>${e(r.addedBy || '')}</td></tr>`).join('')}</tbody></table>` : ''}
                 <h2>ACTIVE RACKS</h2>
                 <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Issues Found</th><th>Action Taken</th><th>Checked By</th></tr></thead>
-                <tbody>${active.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.actionTaken || ''}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
+                <tbody>${active.map(r => `<tr><td>${e(r.serial)}</td><td>${e(r.test)}</td><td>${e(r.location)}</td><td>${e(r.issuesFound)}</td><td>${e(r.actionTaken || '')}</td><td>${e(r.checkedBy)}</td></tr>`).join('')}</tbody></table>
                 <h2>REPAIR/CHECKOUTS</h2>
                 <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Reason</th><th>Checked Out By</th></tr></thead>
-                <tbody>${repairs.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.issuesFound}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
+                <tbody>${repairs.map(r => `<tr><td>${e(r.serial)}</td><td>${e(r.test)}</td><td>${e(r.location)}</td><td>${e(r.issuesFound)}</td><td>${e(r.checkedBy)}</td></tr>`).join('')}</tbody></table>
                 <h2>PASSED RACKS</h2>
                 <table><thead><tr><th>Rack ID</th><th>Test</th><th>Location</th><th>Action Taken</th><th>Checked By</th></tr></thead>
-                <tbody>${passed.map(r => `<tr><td>${r.serial}</td><td>${r.test}</td><td>${r.location}</td><td>${r.actionTaken}</td><td>${r.checkedBy}</td></tr>`).join('')}</tbody></table>
-                </body></html>`);
+                <tbody>${passed.map(r => `<tr><td>${e(r.serial)}</td><td>${e(r.test)}</td><td>${e(r.location)}</td><td>${e(r.actionTaken)}</td><td>${e(r.checkedBy)}</td></tr>`).join('')}</tbody></table>
+                </body></html>`;
+        }
+
+        function buildTeamsReportText() {
+            const date = getDateInput().value;
+            const current = allRacks[date] || [];
+            const queue = checkinQueue[date] || [];
+            const line = r => `${r.serial} | ${r.test || ''} | ${r.location || ''} | ${r.issuesFound || ''} | ${r.actionTaken || ''} | ${r.checkedBy || ''}`;
+            return `EOS 1st Shift — ${date}\n\n${buildShiftNotesText()}\n\nREADY FOR CHECK-IN (${queue.length})\n` +
+                queue.map(r => `${r.serial} | ${r.notes || ''} | ${r.addedBy || ''}`).join('\n') +
+                `\n\nACTIVE RACKS (${current.filter(r => r.active).length})\n` + current.filter(r => r.active).map(line).join('\n') +
+                `\n\nREPAIR/CHECKOUTS (${current.filter(r => r.checkedOut).length})\n` + current.filter(r => r.checkedOut).map(line).join('\n') +
+                `\n\nPASSED RACKS (${current.filter(r => r.passed).length})\n` + current.filter(r => r.passed).map(line).join('\n');
+        }
+
+        function exportForTeams() {
+            const win = window.open('', '_blank');
+            if (!win) { showToast('Pop-up blocked — use Copy Report or Download Report instead.', 'error'); return; }
+            win.document.write(buildTeamsReportHTML());
             win.document.close();
+        }
+
+        function copyTeamsReport() {
+            const text = buildTeamsReportText();
+            const done = () => showToast('Report copied to clipboard.');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done, () => showToast('Copy failed — use Download Report instead.', 'error'));
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta); ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) { showToast('Copy failed — use Download Report instead.', 'error'); }
+                ta.remove();
+            }
+        }
+
+        function downloadTeamsReport() {
+            downloadFile(`eos-shift-report-${getDateInput().value}.html`, buildTeamsReportHTML(), 'text/html');
+            showToast('Report downloaded as .html.');
         }
     </script>
 </body>
