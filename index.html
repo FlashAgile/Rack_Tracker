@@ -1312,6 +1312,7 @@
             }
             allRacks[date].push({
                 id: newId(), serial, location, test, checkedBy,
+                testPercent: '',
                 active: true, passed: false, checkedOut: false,
                 issuesFound: '', actionTaken: ''
             });
@@ -1482,7 +1483,7 @@ ${stationLines}`;
                             <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'serial', this.innerText.trim())">${escapeHtml(r.serial)}</div>
                         </td>
                         <td class="px-6 py-4">${testSelect}</td>
-                        <td class="px-6 py-4">${escapeHtml(r.testPercent || '')}</td>
+                        <td class="px-6 py-4"><div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'testPercent', this.innerText.trim())">${escapeHtml(r.testPercent || '')}</div></td>
                         <td class="px-6 py-4">
                             <div contenteditable="true" onblur="updateField('${date}', '${r.id}', 'location', this.innerText.trim())">${escapeHtml(r.location || '--')}</div>
                         </td>
