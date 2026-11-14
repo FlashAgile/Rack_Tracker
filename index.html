@@ -1677,8 +1677,23 @@ ${stationLines}`;
                     return;
                 }
                 rack[field] = value;
+                // Auto-update the Test station from the Test % band when a
+                // percentage is typed in (e.g. 23.5 -> RUNIN). Uses the same
+                // STAGE_BANDS inference as the Floor Map import.
+                let stageChanged = false;
+                if (field === 'testPercent') {
+                    const stage = floorMapStageForPercent(value);
+                    if (stage && stage !== rack.test) {
+                        rack.test = stage;
+                        stageChanged = true;
+                    }
+                }
                 localStorage.setItem('rackTrackerDB', JSON.stringify(allRacks));
                 updateShiftNotes();
+                if (stageChanged) {
+                    showToast(`Test stage updated to ${rack.test}.`);
+                    loadAndDisplayReport();
+                }
             }
         }
 
