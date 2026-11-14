@@ -325,6 +325,10 @@
                         class="rounded-xl bg-purple-700 px-5 py-3 font-bold text-white transition enabled:hover:bg-purple-600 disabled:cursor-not-allowed disabled:opacity-40">
                         Assign to Selected
                     </button>
+                    <button id="autoAssignFloorMapButton" type="button" onclick="autoAssignFloorMapTechs()" disabled
+                        class="rounded-xl bg-teal-700 px-5 py-3 font-bold text-white transition enabled:hover:bg-teal-600 disabled:cursor-not-allowed disabled:opacity-40">
+                        Auto-Assign to In-Office Techs
+                    </button>
                 </div>
                 <div class="flex flex-col gap-3 border-t border-gray-800 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div class="space-y-1">
@@ -357,8 +361,9 @@
                 <p id="techsStatus" class="text-sm text-gray-400" role="status"></p>
             </div>
             <div class="bg-gray-900 rounded-2xl border border-gray-800 shadow-xl overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-800">
+                <div class="px-6 py-4 border-b border-gray-800 space-y-1">
                     <h3 class="font-bold text-gray-200">Available Techs</h3>
+                    <p id="techsInOfficeLine" class="text-sm text-gray-400">Tick the techs in office today — auto-assign uses them.</p>
                 </div>
                 <ul id="techsList" class="divide-y divide-gray-800"></ul>
             </div>
@@ -589,6 +594,7 @@
         let allRacks = safeParse('rackTrackerDB', {});
         let checkinQueue = safeParse('rackCheckinQueue', {});
         let techs = safeParse('rackTrackerTechs', []);
+        let techsInOffice = safeParse('rackTrackerTechsInOffice', {});
         let floorMapAssignments = safeParse('rackTrackerFloorMapAssignments', {});
         let extraNotesByDate = safeParse('rackTrackerExtraNotes', {});
         const stations = ["IPU/PR", "IPU", "FRU", "PR", "RUNIN", "RL12", "RML", "DCT", "RLT", "PASS"];
@@ -600,7 +606,7 @@
         window.onload = function () {
             const dInput = document.getElementById('dateFilter');
             dInput.value = localDateString(); // local date, not UTC (was toISOString)
-            dInput.addEventListener('change', () => { loadExtraNotes(); loadAndDisplayReport(); });
+            dInput.addEventListener('change', () => { loadExtraNotes(); loadAndDisplayReport(); renderTechs(); });
 
             const savedGoal = localStorage.getItem('rackDailyGoal');
             if (savedGoal) document.getElementById('dailyGoal').value = savedGoal;
@@ -718,6 +724,10 @@
             if (index < 0 || index >= techs.length) return;
             const [removedTech] = techs.splice(index, 1);
             localStorage.setItem('rackTrackerTechs', JSON.stringify(techs));
+            Object.keys(techsInOffice).forEach(d => {
+                techsInOffice[d] = techsInOffice[d].filter(n => n !== removedTech);
+            });
+            localStorage.setItem('rackTrackerTechsInOffice', JSON.stringify(techsInOffice));
             document.getElementById('techsStatus').innerText =
                 `${removedTech} deleted. Existing rack assignments were not changed.`;
             renderTechs();
@@ -726,12 +736,51 @@
             renderActiveTechFilter();
         }
 
+        // In-office selection, per day: tick who is in today and the Floor
+        // Map auto-assign hands racks to them.
+        function getInOfficeTechs(date) {
+            return (techsInOffice[date] || []).filter(name => techs.includes(name));
+        }
+
+        function setTechInOffice(index, inOffice) {
+            const name = techs[index];
+            if (!name) return;
+            const date = getDateInput().value;
+            if (!techsInOffice[date]) techsInOffice[date] = [];
+            const list = techsInOffice[date];
+            const at = list.indexOf(name);
+            if (inOffice && at === -1) list.push(name);
+            if (!inOffice && at !== -1) list.splice(at, 1);
+            localStorage.setItem('rackTrackerTechsInOffice', JSON.stringify(techsInOffice));
+            renderTechs();
+        }
+
+        function setAllTechsInOffice(inOffice) {
+            const date = getDateInput().value;
+            techsInOffice[date] = inOffice ? [...techs] : [];
+            localStorage.setItem('rackTrackerTechsInOffice', JSON.stringify(techsInOffice));
+            renderTechs();
+        }
+
         function renderTechs() {
             const list = document.getElementById('techsList');
+            const date = getDateInput().value;
+            const office = getInOfficeTechs(date);
+            const officeLine = document.getElementById('techsInOfficeLine');
+            if (officeLine) {
+                officeLine.innerHTML = techs.length
+                    ? `${office.length} of ${techs.length} in office ${date} — <button type="button" onclick="setAllTechsInOffice(true)" class="underline text-blue-300">Select all</button> · <button type="button" onclick="setAllTechsInOffice(false)" class="underline text-blue-300">Clear</button>`
+                    : 'No techs added yet.';
+            }
             const entries = ['UNASSIGNED', ...techs];
             list.innerHTML = entries.length
                 ? entries.map((name, index) => `<li class="flex items-center justify-between px-6 py-4">
-                    <span class="${index === 0 ? 'text-gray-400' : 'text-white'}">${escapeHtml(name)}</span>
+                    <span class="flex items-center gap-3">
+                        ${index === 0
+                            ? '<span class="w-4 h-4"></span>'
+                            : `<input type="checkbox" aria-label="Mark ${escapeHtml(name)} in office today" ${office.includes(name) ? 'checked' : ''} onchange="setTechInOffice(${index - 1}, this.checked)" class="accent-green-500 w-4 h-4 cursor-pointer">`}
+                        <span class="${index === 0 ? 'text-gray-400' : 'text-white'}">${escapeHtml(name)}</span>
+                    </span>
                     ${index === 0
                         ? '<span class="text-xs text-gray-500">Default</span>'
                         : `<button type="button" onclick="deleteTech(${index - 1})" aria-label="Delete ${escapeHtml(name)}"
@@ -770,6 +819,20 @@
                 indexes[field] = normalized.findIndex(name => names.includes(name));
             });
             return Object.values(indexes).every(index => index >= 0) ? indexes : null;
+        }
+
+        // Natural sort: "Row 9" before "Row 10", "A2" before "A10".
+        function naturalCompare(a, b) {
+            const ax = String(a || '').split(/(\d+)/);
+            const bx = String(b || '').split(/(\d+)/);
+            for (let i = 0; i < Math.max(ax.length, bx.length); i++) {
+                const x = ax[i] || '', y = bx[i] || '';
+                if (x === y) continue;
+                const nx = Number(x), ny = Number(y);
+                if (x !== '' && y !== '' && !isNaN(nx) && !isNaN(ny)) return nx - ny;
+                return x.toLowerCase() < y.toLowerCase() ? -1 : 1;
+            }
+            return 0;
         }
 
         function floorMapStageForPercent(percent) {
@@ -918,6 +981,7 @@
             }).length;
             const bulkTech = document.getElementById('bulkFloorMapTech').value;
             document.getElementById('assignSelectedFloorMapRacksButton').disabled = selectedCount === 0 || !bulkTech;
+            document.getElementById('autoAssignFloorMapButton').disabled = floorMapExtractedRacks.length === 0;
             document.getElementById('saveFloorMapAssignmentsButton').disabled = pendingCount === 0;
             // M1: Add is blocked ONLY while tech assignments are unsaved.
             // A selection alone never blocks it — selected racks just use
@@ -949,6 +1013,58 @@
             renderFloorMapAssignments();
             document.getElementById('floorMapSaveStatus').innerText =
                 `${assigned} rack${assigned === 1 ? '' : 's'} staged for ${technician}. Select another group to assign a different tech, or save all staged assignments.`;
+        }
+
+        // Auto-assign: hand the UNASSIGNED racks to today's in-office techs
+        // in contiguous runs by location, so each tech walks one stretch
+        // instead of criss-crossing the floor.
+        function autoAssignFloorMapTechs() {
+            if (!floorMapExtractedRacks.length) {
+                showToast('Paste floor-map data first — there are no racks to assign.', 'error');
+                return;
+            }
+            const date = getDateInput().value;
+            const office = getInOfficeTechs(date);
+            if (!office.length) {
+                showToast('No techs marked in office today — tick them on the Techs tab first.', 'error');
+                return;
+            }
+            const targets = floorMapExtractedRacks.filter(rack => {
+                const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+                const tech = String((draft && draft.technician) || rack.technician || 'UNASSIGNED').trim().toUpperCase();
+                return tech === 'UNASSIGNED' || tech === '';
+            });
+            if (!targets.length) {
+                showToast('Every rack already has a tech — nothing to auto-assign.', 'error');
+                return;
+            }
+            targets.sort((a, b) => {
+                const la = String(a.location || '').trim(), lb = String(b.location || '').trim();
+                if (!la && lb) return 1;
+                if (la && !lb) return -1;
+                const byLoc = naturalCompare(la, lb);
+                return byLoc !== 0 ? byLoc : naturalCompare(a.serial, b.serial);
+            });
+            const perTech = Math.floor(targets.length / office.length);
+            const extra = targets.length % office.length;
+            const counts = {};
+            let at = 0;
+            office.forEach((tech, i) => {
+                const size = perTech + (i < extra ? 1 : 0);
+                counts[tech] = size;
+                for (let j = 0; j < size; j++) {
+                    const rack = targets[at++];
+                    const draft = floorMapDraftAssignments[floorMapAssignmentKey(rack.serial)];
+                    if (!draft) continue;
+                    draft.technician = tech;
+                    draft.pending = true;
+                    draft.selected = false;
+                }
+            });
+            const alreadyAssigned = floorMapExtractedRacks.length - targets.length;
+            renderFloorMapAssignments();
+            document.getElementById('floorMapSaveStatus').innerText =
+                `Auto-assigned ${targets.length} rack${targets.length === 1 ? '' : 's'} to ${office.length} tech${office.length === 1 ? '' : 's'} (neighbours kept together): ${office.map(t => `${t} ${counts[t]}`).join(', ')}.${alreadyAssigned ? ` ${alreadyAssigned} already had a tech and ${alreadyAssigned === 1 ? 'was' : 'were'} left alone.` : ''} Save staged assignments to lock them in.`;
         }
 
         function saveFloorMapAssignments() {
@@ -1944,9 +2060,11 @@ ${stationLines}`;
                 if (pendingImport.format === 'rack-tracker-backup') {
                     checkinQueue = pendingImport.queue || {};
                     techs = pendingImport.techs || [];
+                    techsInOffice = pendingImport.techsInOffice || {};
                     floorMapAssignments = pendingImport.assignments || {};
                     localStorage.setItem('rackCheckinQueue', JSON.stringify(checkinQueue));
                     localStorage.setItem('rackTrackerTechs', JSON.stringify(techs));
+                    localStorage.setItem('rackTrackerTechsInOffice', JSON.stringify(techsInOffice));
                     localStorage.setItem('rackTrackerFloorMapAssignments', JSON.stringify(floorMapAssignments));
                     renderTechs(); renderBulkFloorMapTechOptions(); renderActiveTechFilter();
                 }
@@ -1985,11 +2103,11 @@ ${stationLines}`;
             const payload = {
                 format: 'rack-tracker-backup', version: 1,
                 exportedAt: new Date().toISOString(),
-                db: allRacks, queue: checkinQueue, techs,
+                db: allRacks, queue: checkinQueue, techs, techsInOffice,
                 assignments: floorMapAssignments, goal: localStorage.getItem('rackDailyGoal') || ''
             };
             downloadFile(`rack-tracker-backup-${localDateString()}.json`, JSON.stringify(payload, null, 2));
-            showToast('Full backup downloaded (racks, queue, techs, assignments).');
+            showToast('Full backup downloaded (racks, queue, techs, assignments, in-office picks).');
         }
 
         function setSort(key) {
